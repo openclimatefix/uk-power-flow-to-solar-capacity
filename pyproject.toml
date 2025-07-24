@@ -23,7 +23,8 @@ dependencies = [
     "scipy",
     "pyyaml",
     "joblib",
-    "dask"
+    "dask",
+    "tensorflow"    
 ]
 
 [project.optional-dependencies]
