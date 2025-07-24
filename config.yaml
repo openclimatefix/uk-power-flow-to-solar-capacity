@@ -1,4 +1,4 @@
-# Project specific configuration settings
+# Project specific configuration settings - REFERENCE
 # Purely considering boosting architecture
 
 # GLOBAL SETTINGS
@@ -25,9 +25,9 @@ paths:
   output_model_filename: 'xgboost_power_forecaster.joblib'
   plot_output_dir: 'output_plots'
 
-# DATA / FEATURE PARAMETERS
+# DATA INGESTION PARAMETERS
 
-data_params:
+data_ingestion_params:
   target_transformer_ids:
     - 'aldreth_primary_11kv_t1'
     - 'bourn_primary_11kv_t1'
@@ -49,21 +49,22 @@ data_params:
     - 'peachman_way_primary_11kv_t1'
     - 'stopsley_11kv_t1'
     - 'whapload_rd_primary_11kv_t1'
-
   analysis_start_date: '2021-01-01'
   analysis_end_date: '2024-12-31'
-
-  power_csv:
-    timestamp_col: 'timestamp'
-    power_col: 'active_power_mw'
-    transformer_id_col: 'tx_id'
-
+  power_csv_cols:
+    timestamp: 'timestamp'
+    active_power_mw: 'power'
+    tx_id: 'tx_id'
   era5_vars:
-    tcc: 'tcc'
-    ssrd: 'ssrd'
-    t2m: 't2m'
-    skt: 'skt'
-
+    - 'tcc'
+    - 'ssrd'
+    - 't2m'
+    - 'skt'
+  weather_vars_map:
+    tcc: 'cloud_cover'
+    ssrd: 'solar_radiation'
+    t2m: 'air_temperature'
+    skt: 'skin_temperature'
   era5_zip_filenames:
     - '1ad607f0fce80941fdc5bc4c97df5242.zip'
     - '2f58f379803541c69b1d740bd5e64ea4.zip'
@@ -92,11 +93,11 @@ data_params:
     - '6503c171b40075241422bbb47619588a.zip'
     - 'e8cdc6c4ee6a1370ab48970bd09e81db.zip'
 
+# FEATURE ENGINEERING PARAMETERS
+
 feature_params:
-  target_column: 'active_power_mw'
-  feature_columns:
-    - 'hour'
-    - 'dayofweek'
+  target_column: 'power'
+  tcc_var_name: 'tcc'
 
 # MODEL - XGBOOST
 
@@ -106,32 +107,35 @@ model_params:
     val_start: '2023-01-01 00:00:00'
     val_end: '2023-12-31 23:00:00'
     test_start: '2024-01-01 00:00:00'
-    test_end: '2024-12-31 23:00:00'
-
   estimator_params:
     objective: 'reg:squarederror'
     random_state: 42
-
-  hyperparameter_search:
-    n_iterations: 100
-    n_cv_splits: 5
-    scoring: 'neg_root_mean_squared_error'
     n_jobs: -1
-    verbose: 1
+    tree_method: 'gpu_hist'
+  monotonic_constraints:
+    't2m_lag_1h': -1
+    'ssrd_lag_1h': -1
+    'tcc_lag_1h': 1
+  hyperparameter_search:
+    n_iterations: 50
+    n_cv_splits: 4
+    scoring: 'neg_root_mean_squared_error'
+    verbose: 2
     random_state: 42
-
     param_distributions:
-      n_estimators: "randint(100, 800)"
-      learning_rate: "uniform(0.01, 0.15)"
-      max_depth: "randint(3, 7)"
-      min_child_weight: "randint(1, 6)"
-      gamma: "loguniform(0.01, 5.0)"
-      subsample: "uniform(0.7, 0.3)"
-      colsample_bytree: "uniform(0.7, 0.3)"
-      reg_alpha: "loguniform(1e-5, 1.0)"
-      reg_lambda: "loguniform(0.1, 10.0)"
+      n_estimators: "randint(100, 1001)"
+      learning_rate: "uniform(0.005, 0.095)"
+      max_depth: "randint(3, 11)"
+      subsample: "uniform(0.6, 0.4)"
+      colsample_bytree: "uniform(0.6, 0.4)"
+      min_child_weight: "randint(1, 8)"
+      gamma: "loguniform(0.001, 0.4)"
+      reg_alpha: "loguniform(1e-5, 0.5)"
+      reg_lambda: "loguniform(0.01, 1.0)"
 
 # PLOTTING
 
 plotting:
-  save_plots: false
+  save_plots: true
+  plot_start_date: '2024-01-02'
+  plot_end_date: '2024-01-08'

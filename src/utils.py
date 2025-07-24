@@ -1,10 +1,12 @@
 # REFERENCE - Functionality not currently utilised
 
 import logging
+import os
 
+import matplotlib.dates as mdates
 import numpy as np
 import pandas as pd
-import matplotlib.dates as mdates
+from matplotlib import plot as plt
 
 
 def inspect_data_summary(all_sites_data, time_coord_name):
@@ -170,17 +172,17 @@ def log_and_plot_feature_importance(model, feature_names, plot_config):
     if plot_config.get('save_plots', False):
         top_n = 20
         plot_importances = sorted_importances.head(top_n)
-        
+
         plt.figure(figsize=(12, 8))
         plot_importances.sort_values(ascending=True).plot(kind='barh', color='skyblue')
         plt.title(f'Top {top_n} Feature Importances')
         plt.xlabel('Importance Score')
         plt.tight_layout()
-        
+
         output_dir = plot_config.get('plot_output_dir', 'output_plots')
         os.makedirs(output_dir, exist_ok=True)
         save_path = os.path.join(output_dir, 'feature_importance.png')
-        
+
         plt.savefig(save_path)
         plt.close()
         logging.info("Feature importance plot saved to: %s", save_path)
@@ -194,7 +196,7 @@ def plot_predictions(results_df, set_name, target_ids, plot_config):
         return
 
     logging.info("--- Generating Prediction Plots for %s SET ---", set_name.upper())
-    
+
     plot_start = plot_config.get('plot_start_date', '2024-01-02')
     plot_end = plot_config.get('plot_end_date', '2024-01-08')
     output_dir = plot_config.get('plot_output_dir', 'output_plots')
@@ -214,7 +216,7 @@ def plot_predictions(results_df, set_name, target_ids, plot_config):
         plt.figure(figsize=(15, 7))
         plt.plot(site_df.index, site_df['Actual'], label='Actual Power', marker='.', linestyle='-')
         plt.plot(site_df.index, site_df['Predicted'], label=f'Predicted Power ({set_name})', marker='x', linestyle='--')
-        
+
         plt.title(f'{set_name.upper()}: Actual vs. Predicted - {site_name_display}\n({plot_start} to {plot_end})')
         plt.ylabel("Power (MW)")
         plt.legend()
