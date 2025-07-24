@@ -1,12 +1,23 @@
-import yaml
 import logging
-import pandas as pd
 
-from src.data_loader import unzip_era5_files, load_era5_data, load_csv_data
-from src.preprocessing import create_master_dataframe
+import yaml
+
+from src.data_loader import load_csv_data, load_era5_data, unzip_era5_files
 from src.feature_engineering import create_features_for_model
-from src.modeling import split_data, train_model, retrain_with_constraints, evaluate_model, save_model
-from src.utils import sanity_check_splits, log_and_plot_feature_importance, plot_predictions
+from src.modeling import (
+    evaluate_model,
+    retrain_with_constraints,
+    save_model,
+    split_data,
+    train_model,
+)
+from src.preprocessing import create_master_dataframe
+from src.utils import (
+    log_and_plot_feature_importance,
+    plot_predictions,
+    run_quality_assessment,
+    sanity_check_splits,
+)
 
 
 def setup_logging(logging_config):
@@ -16,26 +27,54 @@ def setup_logging(logging_config):
         datefmt=logging_config.get('datefmt', '%Y-%m-%d %H:%M:%S')
     )
 
-
 def main():
     with open('config.yaml', 'r') as f:
         config = yaml.safe_load(f)
-    
+
     setup_logging(config['logging_settings'])
-    
+
     paths = config['paths']
     data_cfg = config['data_ingestion_params']
     feature_cfg = config['feature_params']
     model_cfg = config['model_params']
     plot_cfg = config['plotting']
 
-    idx = pd.MultiIndex.from_product(
-        [data_cfg['target_transformer_ids'], pd.to_datetime(pd.date_range('2021-01-01', '2024-12-31', freq='h', tz='UTC'))],
-        names=['site_id', 'datetime']
+    unzip_era5_files(paths['era5_zip_dir'], data_cfg['era5_zip_filenames'], paths['era5_extract_dir'])
+    ds_era5 = load_era5_data(paths['era5_extract_dir'], paths['skt_files_path'])
+    df_power, df_sites = load_csv_data(paths['power_flow_path'], paths['sites_path'], data_cfg['power_csv_cols'])
+
+    if df_power is None or df_sites is None or ds_era5 is None:
+        logging.error("Critical data failed to load. Aborting pipeline.")
+        return
+
+    master_df = create_master_dataframe(
+        target_ids=data_cfg['target_transformer_ids'],
+        df_power=df_power,
+        df_sites=df_sites,
+        ds_era5=ds_era5,
+        start_date=data_cfg['analysis_start_date'],
+        end_date=data_cfg['analysis_end_date'],
+        era5_vars=data_cfg['era5_vars']
     )
-    dummy_X = pd.DataFrame(index=idx, data={'tcc_lag_1h': range(len(idx)), 't2m_lag_1h': range(len(idx)), 'ssrd_lag_1h': range(len(idx))})
-    dummy_y = pd.Series(index=idx, data=range(len(idx)), name='power')
-    X, y = dummy_X, dummy_y
+    ds_era5.close()
+
+    if master_df.empty:
+        logging.error("Preprocessing resulted in an empty DataFrame. Aborting pipeline.")
+        return
+
+    X, y = create_features_for_model(
+        df=master_df,
+        target_col=feature_cfg['target_column'],
+        weather_vars=data_cfg['era5_vars'],
+        weather_vars_map=data_cfg['weather_vars_map'],
+        tcc_var_name=feature_cfg['tcc_var_name']
+    )
+
+    if X.empty or y.empty:
+        logging.error("Feature engineering resulted in empty X or y. Aborting pipeline.")
+        return
+
+    run_quality_assessment(X, y)
 
     X_train, y_train, X_val, y_val, X_test, y_test = split_data(X, y, model_cfg['split_dates'])
     sanity_check_splits(X_train, y_train, X_val, y_val, X_test, y_test)
@@ -56,12 +95,12 @@ def main():
 
     val_results = evaluate_model(final_model, X_val, y_val, "Validation", data_cfg['target_transformer_ids'])
     test_results = evaluate_model(final_model, X_test, y_test, "Test", data_cfg['target_transformer_ids'])
-    
+
     plot_predictions(val_results, "Validation", data_cfg['target_transformer_ids'], plot_cfg)
     plot_predictions(test_results, "Test", data_cfg['target_transformer_ids'], plot_cfg)
 
+    logging.info("Saving final model...")
     save_model(final_model, paths['model_output_dir'], paths['output_model_filename'])
-
 
 if __name__ == '__main__':
     main()
