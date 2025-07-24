@@ -1,3 +1,5 @@
+# Testing configuration file
+
 project_name: 'power-forecasting-test'
 
 logging_settings:
@@ -11,14 +13,19 @@ paths:
   era5_extract_dir: 'tests/test_data/era5_extracted/'
   skt_files_path: 'tests/test_data/skt_*.nc'
   model_output_dir: 'models'
-  output_model_filename: 'xgboost_power_forecaster.joblib'
+  xgboost_model_filename: 'test_xgboost_model.pkl'
+  lstm_model_filename: 'test_lstm_model.h5'
+  cnn_model_filename: 'test_cnn_model.h5'
+  plot_output_dir: 'output_plots'
+  processed_features_path: 'tests/test_data/processed_X.csv'
+  processed_target_path: 'tests/test_data/processed_y.csv'
 
 data_ingestion_params:
   target_transformer_ids:
     - 'aldreth_primary_11kv_t1'
     - 'bourn_primary_11kv_t1'
   analysis_start_date: '2021-01-01'
-  analysis_end_date: '2021-01-01'
+  analysis_end_date: '2024-03-31' # Extended for meaningful splits
   power_csv_cols:
     timestamp: 'timestamp'
     active_power_mw: 'power'
@@ -28,14 +35,70 @@ data_ingestion_params:
     - 'ssrd'
     - 't2m'
     - 'skt'
+  weather_vars_map:
+    tcc: 'cloud_cover'
+    ssrd: 'solar_radiation'
+    t2m: 'air_temperature'
+    skt: 'skin_temperature'
+  era5_zip_filenames: [] # Not needed for tests assuming data is pre-extracted
 
 feature_params:
   target_column: 'power'
-  feature_columns:
-    - 'hour'
-    - 'dayofweek'
+  tcc_var_name: 'tcc'
 
 model_params:
   split_dates:
     train_end: '2022-12-31 23:00:00'
+    val_start: '2023-01-01 00:00:00'
     val_end: '2023-12-31 23:00:00'
+    test_start: '2024-01-01 00:00:00'
+  estimator_params:
+    objective: 'reg:squarederror'
+    random_state: 42
+    n_jobs: -1
+    tree_method: 'hist'
+  monotonic_constraints:
+    't2m_lag_1h': -1
+  hyperparameter_search:
+    n_iterations: 1 # Keep low for fast tests
+    n_cv_splits: 2
+    scoring: 'neg_root_mean_squared_error'
+    verbose: 0
+    random_state: 42
+    param_distributions:
+      n_estimators: "randint(5, 10)"
+      max_depth: "randint(2, 3)"
+
+common_nn_params:
+  look_back_window: 24
+  optimizer:
+    learning_rate: 0.001
+    clipnorm: 1.0
+  loss_function: 'mse'
+  early_stopping_patience: 2
+  reduce_lr_patience: 1
+  reduce_lr_factor: 0.5
+  min_learning_rate: 0.0001
+  epochs: 1
+  batch_size: 32
+  validation_split: 0.2
+
+lstm_params:
+  lstm_units_1: 8
+  lstm_units_2: 4
+  activation: 'tanh'
+  dropout_rate: 0.1
+
+cnn_params:
+  filters_1: 8
+  filters_2: 4
+  kernel_size: 3
+  pool_size: 2
+  dense_units: 8
+  activation: 'relu'
+  dropout_rate: 0.1
+
+plotting:
+  save_plots: false
+  plot_start_date: '2024-01-02'
+  plot_end_date: '2024-01-08'

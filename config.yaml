@@ -1,4 +1,5 @@
 # Project specific configuration settings - REFERENCE
+# Purely considering boosting architecture
 
 # GLOBAL SETTINGS
 
@@ -14,14 +15,16 @@ logging_settings:
 # PATHS / FILENAMES
 
 paths:
-  drive_mount_point: '/content/drive/MyDrive/'
-  era5_zip_folder: '/content/drive/MyDrive/'
-  era5_extract_dir: '/content/era5_data_for_xgboost_20_sites_2024'
-  skt_files_path: '/content/drive/MyDrive/ukpn_data/skt_*.nc'
-  power_flow_file: '/content/drive/MyDrive/ukpn-primary-transformer-power-flow-historic-half-hourly.csv'
-  sites_file: '/content/drive/MyDrive/grid-and-primary-sites.csv'
+  data_dir: 'data/'
+  era5_zip_dir: 'data/'
+  era5_extract_dir: 'data/era5_extracted/'
+  power_flow_path: 'data/ukpn-primary-transformer-power-flow-historic-half-hourly.csv'
+  sites_path: 'data/grid-and-primary-sites.csv'
+  skt_files_path: 'data/ukpn_data/skt_*.nc'
   model_output_dir: 'models'
-  output_model_filename: 'xgboost_power_forecaster.pkl'
+  xgboost_model_filename: 'xgboost_power_forecaster.pkl'
+  lstm_model_filename: 'lstm_power_forecaster.h5'
+  cnn_model_filename: 'cnn_power_forecaster.h5'
   plot_output_dir: 'output_plots'
   processed_features_path: 'data/processed_X.csv'
   processed_target_path: 'data/processed_y.csv'
@@ -112,7 +115,7 @@ model_params:
     objective: 'reg:squarederror'
     random_state: 42
     n_jobs: -1
-    tree_method: 'gpu_hist'
+    tree_method: 'hist'
   monotonic_constraints:
     't2m_lag_1h': -1
     'ssrd_lag_1h': -1
@@ -134,20 +137,14 @@ model_params:
       reg_alpha: "loguniform(1e-5, 0.5)"
       reg_lambda: "loguniform(0.01, 1.0)"
 
-# MODEL - LSTM
+# COMMON NEURAL NETWORK PARAMETERS
 
-lstm_params:
+common_nn_params:
   look_back_window: 24
-  lstm_units_1: 64
-  lstm_units_2: 32
-  activation: 'tanh'
-  dropout_rate: 0.3
-
   optimizer:
     learning_rate: 0.0001
     clipnorm: 1.0
   loss_function: 'mse'
-
   early_stopping_patience: 15
   reduce_lr_patience: 7
   reduce_lr_factor: 0.5
@@ -155,6 +152,14 @@ lstm_params:
   epochs: 200
   batch_size: 64
   validation_split: 0.2
+
+# MODEL - LSTM
+
+lstm_params:
+  lstm_units_1: 64
+  lstm_units_2: 32
+  activation: 'tanh'
+  dropout_rate: 0.3
 
 # MODEL - CNN
 
@@ -166,19 +171,6 @@ cnn_params:
   dense_units: 25
   activation: 'relu'
   dropout_rate: 0.3
-
-  optimizer:
-    learning_rate: 0.0001
-    clipnorm: 1.0
-  loss_function: 'mse'
-
-  early_stopping_patience: 15
-  reduce_lr_patience: 7
-  reduce_lr_factor: 0.5
-  min_learning_rate: 0.000005
-  epochs: 200
-  batch_size: 64
-  validation_split: 0.2
 
 # PLOTTING
 
