@@ -97,8 +97,6 @@ def handle_missing_values(df, era5_vars):
     """
     Interpolates missing values in the master DataFrame on a per-site basis.
     """
-    logging.info("Handling NaNs via interpolation for all sites...")
-
     def interpolate_group(group):
         tx_id = group['tx_id'].iloc[0]
 

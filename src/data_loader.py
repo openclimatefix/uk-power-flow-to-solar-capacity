@@ -16,11 +16,11 @@ def unzip_era5_files(zip_folder, zip_filenames, extract_dir):
     """
     os.makedirs(extract_dir, exist_ok=True)
 
-    # Check extraction is explicitly needed
     if len(glob.glob(os.path.join(extract_dir, '*.nc'))) >= len(zip_filenames):
         logging.info("ERA5 .nc files appear to be already extracted in %s.", extract_dir)
         return
 
+    logging.info("Extraction required. Processing zip files...")
     for zip_idx, zip_filename in enumerate(zip_filenames):
         zip_file_path = os.path.join(zip_folder, zip_filename)
         if not os.path.exists(zip_file_path):
@@ -33,9 +33,9 @@ def unzip_era5_files(zip_folder, zip_filenames, extract_dir):
                     new_filename = f"era5_data_{zip_idx}_{os.path.basename(member_info.filename)}"
                     target_path = os.path.join(extract_dir, new_filename)
                     if not os.path.exists(target_path):
-                        zip_ref.extract(member_info, path=extract_dir)
-                        # Rename  extracted file - ensure uniqueness
-                        os.rename(os.path.join(extract_dir, member_info.filename), target_path)
+                        # Extract directly to the final destination
+                        with zip_ref.open(member_info) as source, open(target_path, 'wb') as target:
+                            target.write(source.read())
 
     logging.info("Extraction process check completed.")
 
@@ -46,7 +46,6 @@ def load_era5_data(extract_dir, skt_path_pattern):
     """
     nc_files = glob.glob(os.path.join(extract_dir, '*.nc'))
     skt_nc_files = glob.glob(skt_path_pattern)
-
     all_nc_files = sorted(list(set(nc_files + skt_nc_files)))
 
     if not all_nc_files:
@@ -74,12 +73,8 @@ def load_csv_data(power_path, sites_path, power_cols, sites_encoding='latin1'):
     """
     Loads the transformer power flow and site coordinates CSV files.
     """
-    if not os.path.exists(power_path):
-        logging.error("Power flow data file not found: %s", power_path)
-        return None, None
-
-    if not os.path.exists(sites_path):
-        logging.error("Sites coordinate file not found: %s", sites_path)
+    if not os.path.exists(power_path) or not os.path.exists(sites_path):
+        logging.error("Power flow or sites coordinate file not found.")
         return None, None
 
     # Load power data
