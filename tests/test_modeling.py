@@ -1,10 +1,6 @@
-import sys
-import os
-import pandas as pd
-import pytest
 import xgboost as xgb
 
-from src.modeling import split_data, train_model, retrain_with_constraints, evaluate_model, save_model, load_model
+from src.modeling import load_model, save_model, split_data, train_model
 
 
 def test_split_data(mock_feature_data):
@@ -56,7 +52,7 @@ def test_save_and_load_model(tmp_path, mock_feature_data):
     X, y = mock_feature_data
     model_dir = tmp_path / "models"
     model_filename = "test_model.joblib"
-    
+
     # Create a simple trained model
     simple_model = xgb.XGBRegressor()
     simple_model.fit(X.iloc[:10], y.iloc[:10])

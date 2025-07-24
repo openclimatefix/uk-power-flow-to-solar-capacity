@@ -1,11 +1,12 @@
 
+import os
+import sys
+
 import numpy as np
 import pandas as pd
 import pytest
 import xarray as xr
 import yaml
-import sys
-import os
 
 sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), '..')))
 
@@ -88,7 +89,7 @@ def mock_feature_data():
         names=['site_id', 'datetime']
     )
     X = pd.DataFrame(index=idx, data={
-        'feature1': range(len(idx)), 
+        'feature1': range(len(idx)),
         'tcc_lag_1h': range(len(idx)),
         't2m_lag_1h': range(len(idx)),
         'ssrd_lag_1h': range(len(idx))
