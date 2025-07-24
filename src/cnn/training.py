@@ -1,9 +1,9 @@
 from tensorflow.keras.callbacks import EarlyStopping, ReduceLROnPlateau
 
 
-def train_lstm_model(model, X_train_seq, y_train_seq, training_config):
+def train_cnn_model(model, X_train_seq, y_train_seq, training_config):
     """
-    Trains LSTM model with early stopping / learning rate reduction.
+    Trains 1D CNN model with early stopping and learning rate reduction.
     """
     early_stopping = EarlyStopping(
         monitor='val_loss',

@@ -1,7 +1,8 @@
-import numpy as np
-import pandas as pd
-from sklearn.preprocessing import StandardScaler
 import logging
+
+import numpy as np
+from sklearn.preprocessing import StandardScaler
+
 
 def create_scalers(X_train, y_train):
     """
@@ -13,7 +14,7 @@ def create_scalers(X_train, y_train):
     # Fit scalers only on training data
     feature_scaler.fit(X_train.droplevel('site_id'))
     target_scaler.fit(y_train.droplevel('site_id').values.reshape(-1, 1))
-    
+
     logging.info("Feature and target scalers fitted on training data.")
     return feature_scaler, target_scaler
 
@@ -26,7 +27,7 @@ def create_sequences(X_df, y_series, look_back, feature_scaler, target_scaler):
     # Sort - ensure correct sequence creation for each site
     X_df_sorted = X_df.sort_index(level=['site_id', 'datetime'])
     y_series_sorted = y_series.sort_index(level=['site_id', 'datetime'])
-    
+
     site_ids = X_df_sorted.index.get_level_values('site_id').unique()
 
     for site_id in site_ids:

@@ -13,13 +13,11 @@ sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), '..')
 
 @pytest.fixture(scope="session")
 def test_data_dir(tmpdir_factory):
-    """Create a temporary directory for test data."""
     return tmpdir_factory.mktemp("test_data")
 
 
 @pytest.fixture(scope="session")
 def test_config(test_data_dir):
-    """Create and load the test configuration YAML file."""
     config_content = f"""
 project_name: 'power-forecasting-test'
 paths:
@@ -49,7 +47,6 @@ feature_params:
 
 @pytest.fixture(scope="session")
 def setup_test_data(test_data_dir):
-    """Create realistic test CSV and NetCDF files based on notebook output."""
     # Power Data
     power_data = {
         'timestamp': ['2021-01-01 00:00:00', '2021-01-01 00:30:00'],
@@ -58,7 +55,7 @@ def setup_test_data(test_data_dir):
     }
     pd.DataFrame(power_data).to_csv(f"{test_data_dir}/power.csv", index=False)
 
-    # Sites Data
+    # Power Site Data
     sites_data = {'SiteName': ['ALDRETH PRIMARY 33kV'], 'Easting': [544836], 'Northing': [273370]}
     pd.DataFrame(sites_data).to_csv(f"{test_data_dir}/sites.csv", index=False)
 
@@ -83,7 +80,6 @@ def setup_test_data(test_data_dir):
 
 @pytest.fixture
 def mock_feature_data():
-    """Creates a realistic, multi-indexed DataFrame for testing model functions."""
     idx = pd.MultiIndex.from_product(
         [['site_a'], pd.to_datetime(pd.date_range('2021-01-01', '2024-03-31', freq='h', tz='UTC'))],
         names=['site_id', 'datetime']

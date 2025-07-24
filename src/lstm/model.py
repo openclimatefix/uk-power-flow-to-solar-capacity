@@ -1,6 +1,7 @@
-from tensorflow.keras.models import Sequential
 from tensorflow.keras.layers import LSTM, Dense, Dropout
+from tensorflow.keras.models import Sequential
 from tensorflow.keras.optimizers import Adam
+
 
 def build_lstm_model(look_back_window, n_features, model_config):
     """
@@ -27,11 +28,11 @@ def build_lstm_model(look_back_window, n_features, model_config):
         learning_rate=model_config['optimizer']['learning_rate'],
         clipnorm=model_config['optimizer']['clipnorm']
     )
-    
+
     model.compile(
         optimizer=optimizer,
         loss=model_config['loss_function']
     )
-    
+
     model.summary()
     return model

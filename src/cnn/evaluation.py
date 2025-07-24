@@ -4,11 +4,17 @@ import numpy as np
 from sklearn.metrics import mean_absolute_error, mean_squared_error, r2_score
 
 
-def evaluate_lstm_model(model, X_test_seq, y_test_seq, target_scaler):
+def evaluate_cnn_model(model, X_test_seq, y_test_seq, target_scaler):
     """
-    Evaluates the trained LSTM model on the test set and returns performance metrics.
+    Evaluates trained CNN model on test set and returns performance metrics.
     """
+
+    if X_test_seq.size == 0:
+        logging.warning("X_test_seq is empty. Cannot evaluate model.")
+        return {'mae': np.nan, 'rmse': np.nan, 'r2': np.nan}
+
     y_pred_scaled = model.predict(X_test_seq)
+
     y_pred_unscaled = target_scaler.inverse_transform(y_pred_scaled).flatten()
     y_test_unscaled = target_scaler.inverse_transform(y_test_seq.reshape(-1, 1)).flatten()
 
@@ -20,7 +26,7 @@ def evaluate_lstm_model(model, X_test_seq, y_test_seq, target_scaler):
     rmse = np.sqrt(mean_squared_error(y_test_unscaled, y_pred_unscaled))
     r2 = r2_score(y_test_unscaled, y_pred_unscaled)
 
-    logging.info("LSTM Model Performance:")
+    logging.info("1D CNN Model Performance:")
     logging.info("  MAE:  %.3f MW", mae)
     logging.info("  RMSE: %.3f MW", rmse)
     logging.info("  R²:   %.3f", r2)
