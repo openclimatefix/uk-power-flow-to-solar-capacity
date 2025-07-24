@@ -9,12 +9,14 @@ import pandas as pd
 
 def create_cyclical_features(df):
     """Creates cyclical (sine/cosine) features from the datetime index."""
-    df['hour'] = df.index.hour
-    df['dayofweek'] = df.index.dayofweek
-    df['dayofyear'] = df.index.dayofyear
-    df['month'] = df.index.month
-    df['quarter'] = df.index.quarter
-    df['weekofyear'] = df.index.isocalendar().week.astype(int)
+    datetime_index = df.index.get_level_values('datetime')
+
+    df['hour'] = datetime_index.hour
+    df['dayofweek'] = datetime_index.dayofweek
+    df['dayofyear'] = datetime_index.dayofyear
+    df['month'] = datetime_index.month
+    df['quarter'] = datetime_index.quarter
+    df['weekofyear'] = datetime_index.isocalendar().week.astype(int)
 
     df['hour_sin'] = np.sin(2 * np.pi * df['hour'] / 24.0)
     df['hour_cos'] = np.cos(2 * np.pi * df['hour'] / 24.0)
@@ -23,7 +25,7 @@ def create_cyclical_features(df):
     df['month_sin'] = np.sin(2 * np.pi * (df['month'] - 1) / 12.0)
     df['month_cos'] = np.cos(2 * np.pi * (df['month'] - 1) / 12.0)
 
-    days_in_year = pd.Series(df.index.is_leap_year, index=df.index).map({True: 366, False: 365})
+    days_in_year = pd.Series(datetime_index.is_leap_year, index=df.index).map({True: 366, False: 365})
     df['dayofyear_sin'] = np.sin(2 * np.pi * df['dayofyear'] / days_in_year)
     df['dayofyear_cos'] = np.cos(2 * np.pi * df['dayofyear'] / days_in_year)
 
@@ -32,11 +34,13 @@ def create_cyclical_features(df):
 
 def create_event_features(df):
     """Creates features based on holidays and specific days of the week."""
-    min_year, max_year = df.index.min().year, df.index.max().year
+    datetime_index = df.index.get_level_values('datetime')
+    min_year, max_year = datetime_index.min().year, datetime_index.max().year
+
     uk_holidays = holidays.UK(years=range(min_year, max_year + 1))
 
-    normalized_dates = df.index.normalize()
-    df['is_holiday'] = normalized_dates.isin(uk_holidays).astype(int)
+    normalized_dates = datetime_index.normalize()
+    df['is_holiday'] = pd.Series(normalized_dates.isin(uk_holidays), index=df.index).astype(int)
     df['is_day_before_holiday'] = df['is_holiday'].shift(-24, fill_value=0)
     df['is_day_after_holiday'] = df['is_holiday'].shift(24, fill_value=0)
 
@@ -51,11 +55,8 @@ def create_event_features(df):
     return df
 
 
-def create_lag_and_roll_features(df, weather_vars):
+def create_lag_and_roll_features(df, weather_vars, weather_lags, weather_roll_windows):
     """Creates lagged and rolling window features for weather variables."""
-    weather_lags = [1, 3, 6, 12, 24]
-    weather_roll_windows = [3, 6, 12, 24]
-
     for var in weather_vars:
         if var not in df.columns:
             logging.warning("Weather variable '%s' not found. Skipping its features.", var)
@@ -74,14 +75,8 @@ def create_lag_and_roll_features(df, weather_vars):
     return df
 
 
-def create_power_weather_interactions(df, target_col, tcc_var_name):
+def create_power_weather_interactions(df, target_col, tcc_var_name, power_lags, power_windows, weather_lags):
     """Creates interaction features between power (target) and weather (TCC)."""
-    logging.info("Creating power-weather interaction features...")
-
-    power_lags = [1, 2, 3, 6, 12, 24, 48, 168]
-    power_windows = [3, 6, 12, 24, 48, 168]
-    weather_lags = [1, 6, 24]
-
     for p_lag in power_lags:
         power_lagged = df[target_col].shift(p_lag)
         for w_lag in weather_lags:
@@ -101,8 +96,6 @@ def create_power_weather_interactions(df, target_col, tcc_var_name):
 
 def create_weather_enhancements(df, weather_vars_map):
     """Creates enhanced weather features like squared terms and multi-hour differences."""
-    logging.info("Creating enhanced weather features...")
-
     for var_name in weather_vars_map.keys():
         lag1h_var = f'{var_name}_lag_1h'
         if lag1h_var not in df.columns:
@@ -136,13 +129,16 @@ def remove_constant_features(X):
     return X
 
 
-def create_features_for_model(df, target_col, weather_vars, weather_vars_map, tcc_var_name):
+def create_features_for_model(df, feature_params, weather_vars, weather_vars_map):
     """
     Main function to orchestrate all feature engineering for the master DataFrame.
     """
     if df.empty:
-        logging.error("Input DataFrame is empty. Cannot perform feature engineering.")
+        logging.error("Input DataFrame is empty - cannot perform feature engineering.")
         return pd.DataFrame(), pd.Series()
+
+    target_col = feature_params['target_column']
+    tcc_var_name = feature_params['tcc_var_name']
 
     all_sites_processed = []
     df_sorted = df.sort_index()
@@ -152,8 +148,20 @@ def create_features_for_model(df, target_col, weather_vars, weather_vars_map, tc
 
         group = create_cyclical_features(group)
         group = create_event_features(group)
-        group = create_lag_and_roll_features(group, weather_vars)
-        group = create_power_weather_interactions(group, target_col, tcc_var_name)
+        group = create_lag_and_roll_features(
+            group,
+            weather_vars,
+            feature_params['base_weather_lags'],
+            feature_params['base_weather_roll_windows']
+        )
+        group = create_power_weather_interactions(
+            group,
+            target_col,
+            tcc_var_name,
+            feature_params['power_interaction_lags'],
+            feature_params['power_interaction_roll_windows'],
+            feature_params['interaction_weather_lags']
+        )
         group = create_weather_enhancements(group, weather_vars_map)
 
         all_sites_processed.append(group)

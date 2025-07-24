@@ -63,10 +63,29 @@ def setup_test_data(tmpdir_factory, test_config):
 
 
 @pytest.fixture
+def preprocessed_df():
+    """
+    Creates a clean, preprocessed DataFrame for testing feature engineering functions.
+    """
+    dates = pd.to_datetime(pd.date_range('2022-01-01', periods=100, freq='h', tz='UTC'))
+    idx = pd.MultiIndex.from_product(
+        [['site_a'], dates],
+        names=['site_id', 'datetime']
+    )
+    df = pd.DataFrame(index=idx)
+    df['power'] = np.random.rand(100) * 100
+    df['tcc'] = np.random.rand(100)
+    df['t2m'] = np.linspace(273, 283, 100)
+    df['skt'] = np.linspace(272, 282, 100)
+    df['ssrd'] = np.random.rand(100) * 1000
+    return df
+
+
+@pytest.fixture
 def mock_feature_data():
     """
-    Creates a larger, synthetic DataFrame for testing modeling functions
-    that require a longer time series.
+    Creates a synthetic DataFrame for testing modeling functions
+    that require longer time series.
     """
     idx = pd.MultiIndex.from_product(
         [['site_a'], pd.to_datetime(pd.date_range('2021-01-01', '2024-03-31', freq='h', tz='UTC'))],

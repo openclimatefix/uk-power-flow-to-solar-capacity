@@ -93,36 +93,46 @@ def get_site_era5_data(coords, ds_era5, start_dt, end_dt):
     return ds_site.to_dataframe()
 
 
+def _interpolate_power(group):
+    """Helper function to interpolate the power column for a site group."""
+    if 'power' in group.columns and group['power'].isnull().any():
+        group['power'] = group['power'].interpolate(method='linear', limit_direction='both', limit=24).ffill().bfill()
+    return group
+
+
+def _interpolate_weather(group, era5_vars):
+    """Helper function to interpolate weather columns for a site group."""
+    tx_id = group['tx_id'].iloc[0]
+    for var in era5_vars:
+        if var not in group.columns or not group[var].isnull().any():
+            continue
+
+        if group[var].isnull().all():
+            if var == 'skt' and 't2m' in group.columns and group['t2m'].notnull().any():
+                logging.warning("Variable '%s' for site %s is all NaNs. Filling with 't2m' as proxy.", var, tx_id)
+                group[var] = group['t2m']
+            else:
+                logging.error("Variable '%s' for site %s is all NaNs and no proxy available. Filling with 0.", var, tx_id)
+                group[var] = group[var].fillna(0)
+        else:
+            group[var] = group[var].interpolate(method='linear', limit_direction='both', limit=24).ffill().bfill()
+    return group
+
+
 def handle_missing_values(df, era5_vars):
     """
     Interpolates missing values in the master DataFrame on a per-site basis.
     """
+    logging.info("Handling NaNs via interpolation for all sites...")
+
     def interpolate_group(group):
-        tx_id = group['tx_id'].iloc[0]
-
-        # Interpolate power data
-        if 'power' in group.columns and group['power'].isnull().any():
-            group['power'] = group['power'].interpolate(method='linear', limit_direction='both', limit=24).ffill().bfill()
-
-        # Interpolate ERA5 data
-        for var in era5_vars:
-            if var not in group.columns or not group[var].isnull().any():
-                continue
-
-            if group[var].isnull().all():
-                if var == 'skt' and 't2m' in group.columns and group['t2m'].notnull().any():
-                    logging.warning("Variable '%s' for site %s is all NaNs. Filling with 't2m' as proxy.", var, tx_id)
-                    group[var] = group['t2m']
-                else:
-                    logging.error("Variable '%s' for site %s is all NaNs and no proxy available. Filling with 0.", var, tx_id)
-                    group[var] = group[var].fillna(0)
-            else:
-                group[var] = group[var].interpolate(method='linear', limit_direction='both', limit=24).ffill().bfill()
+        group = _interpolate_power(group)
+        group = _interpolate_weather(group, era5_vars)
         return group
 
     df_interpolated = df.groupby('tx_id', group_keys=False).apply(interpolate_group)
-    final_nans = df_interpolated.isnull().sum()
 
+    final_nans = df_interpolated.isnull().sum()
     for col, nan_count in final_nans[final_nans > 0].items():
         logging.error("%d NaNs remain in column '%s' after all interpolation steps.", nan_count, col)
 

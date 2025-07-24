@@ -102,6 +102,11 @@ data_ingestion_params:
 feature_params:
   target_column: 'power'
   tcc_var_name: 'tcc'
+  base_weather_lags: [1, 3, 6, 12, 24]
+  base_weather_roll_windows: [3, 6, 12, 24]
+  power_interaction_lags: [1, 2, 3, 6, 12, 24, 48, 168]
+  power_interaction_roll_windows: [3, 6, 12, 24, 48, 168]
+  interaction_weather_lags: [1, 6, 24]
 
 # MODEL - XGBOOST
 
