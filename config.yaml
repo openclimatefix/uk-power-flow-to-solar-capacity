@@ -1,0 +1,137 @@
+# Project specific configuration settings
+# Purely considering boosting architecture
+
+# GLOBAL SETTINGS
+
+project_name: 'power-forecasting'
+
+# LOGGING CONFIGURATION
+
+logging_settings:
+  level: 'INFO'
+  format: '%(asctime)s - %(levelname)s - %(message)s'
+  datefmt: '%Y-%m-%d %H:%M:%S'
+
+# PATHS / FILENAMES
+
+paths:
+  drive_mount_point: '/content/drive/MyDrive/'
+  era5_zip_folder: '/content/drive/MyDrive/'
+  era5_extract_dir: '/content/era5_data_for_xgboost_20_sites_2024'
+  skt_files_path: '/content/drive/MyDrive/ukpn_data/skt_*.nc'
+  power_flow_file: '/content/drive/MyDrive/ukpn-primary-transformer-power-flow-historic-half-hourly.csv'
+  sites_file: '/content/drive/MyDrive/grid-and-primary-sites.csv'
+  model_output_dir: 'models'
+  output_model_filename: 'xgboost_power_forecaster.joblib'
+  plot_output_dir: 'output_plots'
+
+# DATA / FEATURE PARAMETERS
+
+data_params:
+  target_transformer_ids:
+    - 'aldreth_primary_11kv_t1'
+    - 'bourn_primary_11kv_t1'
+    - 'bungay_primary_11kv_t1'
+    - 'chartham_11kv_t1'
+    - 'danbury_primary_11kv_t1'
+    - 'hitcham_primary_11kv_t1'
+    - 'sandy_primary_11kv_t1'
+    - 'sundridge_11kv_t1'
+    - 'thaxted_local_11kv_t1'
+    - 'worstead_primary_11kv_t1'
+    - 'austin_street_primary_11kv_t1'
+    - 'basildon_local_primary_11kv_t1'
+    - 'hendon_way_primary_11kv_t1'
+    - 'kingsbury_primary_11kv_t1'
+    - 'madingley_rd_primary_11kv_t1'
+    - 'marshalswick_primary_11kv_t1'
+    - 'ruxley_11kv_t1'
+    - 'peachman_way_primary_11kv_t1'
+    - 'stopsley_11kv_t1'
+    - 'whapload_rd_primary_11kv_t1'
+
+  analysis_start_date: '2021-01-01'
+  analysis_end_date: '2024-12-31'
+
+  power_csv:
+    timestamp_col: 'timestamp'
+    power_col: 'active_power_mw'
+    transformer_id_col: 'tx_id'
+
+  era5_vars:
+    tcc: 'tcc'
+    ssrd: 'ssrd'
+    t2m: 't2m'
+    skt: 'skt'
+
+  era5_zip_filenames:
+    - '1ad607f0fce80941fdc5bc4c97df5242.zip'
+    - '2f58f379803541c69b1d740bd5e64ea4.zip'
+    - '3df5d74f8b870ce52425007b18feccae.zip'
+    - '5a009d2445c81124187bda7081a2a2e0.zip'
+    - '5feb33a8896e7836a14585ff0b781d0c.zip'
+    - '7e393de69db80f9fa352944156922d44.zip'
+    - '9a9f107d6898d694d91227eae1afdc47.zip'
+    - '9b2406b6aa7854353fcabf76f5df9d4.zip'
+    - '30c5913b0b7d460536a18a0a722e7dce.zip'
+    - '32bc63c218dec9ba5e3446ca7c2e08e.zip'
+    - '70a491bb8f44e7a05b56423806bfa152.zip'
+    - '170ac59b1ee6b516fa77daee6c19e367.zip'
+    - '410b3610b43296796015f89063dae376.zip'
+    - '533b0e70a841b045f29f1ee1dd58c608.zip'
+    - '9953cc1b89cbadc63fdf5574b3f3f86a.zip'
+    - '23406af64990516f6f82078a6f08a372.zip'
+    - '44253784ff620229a9adbcaf1e8e7a0e.zip'
+    - '766253913f1fae9599d2637d803aad4d.zip'
+    - 'b1e4a8d1891c601e3f90d8311c4c2229.zip'
+    - 'b7e53a108e50d6315a89da0e3bf833e7.zip'
+    - 'b19e9b8428429a62780c2c37e8a74bea.zip'
+    - 'c5b5904167cfa1356d6e2e4ff3be4db7.zip'
+    - 'd4ff02e04064e092855efdbb3131f3fd.zip'
+    - 'f2d43f6d5d5b2de76bb34e19091d482e.zip'
+    - '6503c171b40075241422bbb47619588a.zip'
+    - 'e8cdc6c4ee6a1370ab48970bd09e81db.zip'
+
+feature_params:
+  target_column: 'active_power_mw'
+  feature_columns:
+    - 'hour'
+    - 'dayofweek'
+
+# MODEL - XGBOOST
+
+model_params:
+  split_dates:
+    train_end: '2022-12-31 23:00:00'
+    val_start: '2023-01-01 00:00:00'
+    val_end: '2023-12-31 23:00:00'
+    test_start: '2024-01-01 00:00:00'
+    test_end: '2024-12-31 23:00:00'
+
+  estimator_params:
+    objective: 'reg:squarederror'
+    random_state: 42
+
+  hyperparameter_search:
+    n_iterations: 100
+    n_cv_splits: 5
+    scoring: 'neg_root_mean_squared_error'
+    n_jobs: -1
+    verbose: 1
+    random_state: 42
+
+    param_distributions:
+      n_estimators: "randint(100, 800)"
+      learning_rate: "uniform(0.01, 0.15)"
+      max_depth: "randint(3, 7)"
+      min_child_weight: "randint(1, 6)"
+      gamma: "loguniform(0.01, 5.0)"
+      subsample: "uniform(0.7, 0.3)"
+      colsample_bytree: "uniform(0.7, 0.3)"
+      reg_alpha: "loguniform(1e-5, 1.0)"
+      reg_lambda: "loguniform(0.1, 10.0)"
+
+# PLOTTING
+
+plotting:
+  save_plots: false

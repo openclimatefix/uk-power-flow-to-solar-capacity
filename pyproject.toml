@@ -1,0 +1,38 @@
+[build-system]
+requires = ["setuptools>=61.0"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "power-forecasting"
+version = "0.1.0"
+description = "XGBoost model for power load forecasting from a Jupyter Notebook."
+readme = "README.md"
+requires-python = ">=3.9"
+authors = [
+  { name="Your Name", email="you@example.com" },
+]
+dependencies = [
+    "pandas",
+    "xgboost",
+    "scikit-learn",
+    "xarray",
+    "netCDF4",
+    "matplotlib",
+    "pyproj",
+    "holidays",
+    "scipy",
+    "pyyaml",
+    "joblib",
+    "dask"
+]
+
+[project.optional-dependencies]
+dev = [
+    "pytest",
+    "ruff"
+]
+
+[tool.ruff]
+line-length = 88
+select = ["E", "F", "I", "W"]
+ignore = ["E501"]
