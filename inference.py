@@ -1,9 +1,9 @@
-import yaml
 import logging
+
 import pandas as pd
+import yaml
 
 from src.modeling import load_model
-from src.utils import run_quality_assessment
 
 
 def setup_logging(logging_config):
@@ -17,10 +17,10 @@ def setup_logging(logging_config):
 def main():
     with open('config.yaml', 'r') as f:
         config = yaml.safe_load(f)
-    
+
     setup_logging(config['logging_settings'])
     paths = config['paths']
-    
+
     model = load_model(paths['model_output_dir'], paths['output_model_filename'])
     if model is None:
         return
@@ -30,14 +30,14 @@ def main():
         names=['site_id', 'datetime']
     )
     new_X = pd.DataFrame(index=idx, data={'tcc_lag_1h': range(24), 't2m_lag_1h': range(24), 'ssrd_lag_1h': range(24)})
-    
+
 
     predictions = model.predict(new_X)
 
     results = pd.DataFrame({'timestamp': new_X.index.get_level_values('datetime'), 'predicted_power_mw': predictions})
     print("\n--- Prediction Results ---")
     print(results)
-    print("------------------------\n")
+
 
 if __name__ == '__main__':
     main()
