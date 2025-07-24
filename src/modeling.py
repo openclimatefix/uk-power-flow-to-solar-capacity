@@ -1,20 +1,39 @@
+# Currently for XGBoost only - including intermediate stages
 
+import logging
+import os
+
+import joblib
+import numpy as np
 import pandas as pd
 import xgboost as xgb
+from scipy.stats import loguniform, randint, uniform
+from sklearn.metrics import mean_absolute_error, mean_squared_error, r2_score
 from sklearn.model_selection import RandomizedSearchCV, TimeSeriesSplit
-from scipy.stats import uniform, randint, loguniform
-import logging
-from sklearn.metrics import mean_absolute_error, r2_score, mean_squared_error
-import numpy as np
-import os
-import joblib
+
+
+def _parse_param_distributions(params_dict):
+    """Parses string representations of distributions into scipy.stats objects."""
+    parsed_dict = {}
+    for param, value in params_dict.items():
+        parsed_dict[param] = eval(value, {"uniform": uniform, "randint": randint, "loguniform": loguniform})
+    return parsed_dict
+
+
+def _log_feature_importances(model, feature_names):
+    """Logs the top 20 feature importances from a trained model."""
+    if hasattr(model, 'feature_importances_'):
+        feature_importance_df = pd.DataFrame({
+            'feature': feature_names,
+            'importance': model.feature_importances_
+        }).sort_values('importance', ascending=False)
+        logging.info("Top 20 features from the tuned model:\n%s", feature_importance_df.head(20))
+
 
 def split_data(X, y, split_dates):
     """
     Splits data into training, validation, and test sets based on dates.
     """
-    logging.info("Splitting data into training, validation, and test sets...")
-    
     train_end = pd.to_datetime(split_dates['train_end'], utc=True)
     val_start = pd.to_datetime(split_dates['val_start'], utc=True)
     val_end = pd.to_datetime(split_dates['val_end'], utc=True)
@@ -40,8 +59,7 @@ def split_data(X, y, split_dates):
     if not X_test.empty:
         X_test = X_test.sort_index(level=['site_id', 'datetime'])
         y_test = y_test.sort_index(level=['site_id', 'datetime'])
-        
-    logging.info("Data splitting complete.")
+
     return X_train, y_train, X_val, y_val, X_test, y_test
 
 
@@ -50,17 +68,11 @@ def train_model(X_train, y_train, estimator_params, search_params):
     Performs hyperparameter tuning using RandomizedSearchCV and returns the best model.
     """
     base_model = xgb.XGBRegressor(**estimator_params)
-    
+
     tscv = TimeSeriesSplit(n_splits=search_params['n_cv_splits'])
     logging.info("Using TimeSeriesSplit with %d splits for cross-validation.", search_params['n_cv_splits'])
 
-    def parse_param_distributions(params_dict):
-        parsed_dict = {}
-        for param, value in params_dict.items():
-            parsed_dict[param] = eval(value, {"uniform": uniform, "randint": randint, "loguniform": loguniform})
-        return parsed_dict
-
-    param_dist = parse_param_distributions(search_params['param_distributions'])
+    param_dist = _parse_param_distributions(search_params['param_distributions'])
 
     random_search = RandomizedSearchCV(
         estimator=base_model,
@@ -78,18 +90,11 @@ def train_model(X_train, y_train, estimator_params, search_params):
 
     logging.info("Best hyperparameters found: %s", random_search.best_params_)
     logging.info("Best cross-validation RMSE: %.4f", -random_search.best_score_)
-    
-    final_model = random_search.best_estimator_
-    
-    # Display feature importances
-    if hasattr(final_model, 'feature_importances_'):
-        feature_importance_df = pd.DataFrame({
-            'feature': X_train.columns,
-            'importance': final_model.feature_importances_
-        }).sort_values('importance', ascending=False)
-        logging.info("Top 20 features from the tuned model:\n%s", feature_importance_df.head(20))
 
-    return random_search.best_estimator_, random_search.best_params_
+    best_model = random_search.best_estimator_
+    _log_feature_importances(best_model, X_train.columns)
+
+    return best_model, random_search.best_params_
 
 
 def retrain_with_constraints(best_params, X_train, y_train, constraint_map, base_params):
@@ -100,7 +105,7 @@ def retrain_with_constraints(best_params, X_train, y_train, constraint_map, base
     logging.info("Defining final model with optimal hyperparameters and monotonic constraints.")
 
     feature_names = X_train.columns.tolist()
-    
+
     # Create constraint tuple based on feature order
     monotone_constraints = [0] * len(feature_names)
     for feature, constraint in constraint_map.items():
@@ -115,11 +120,8 @@ def retrain_with_constraints(best_params, X_train, y_train, constraint_map, base
     final_params['monotone_constraints'] = tuple(monotone_constraints)
 
     final_model = xgb.XGBRegressor(**final_params)
-
-    logging.info("Training final constrained model...")
     final_model.fit(X_train, y_train)
-    logging.info("Final constrained model trained successfully.")
-    
+
     return final_model
 
 
@@ -127,7 +129,6 @@ def evaluate_model(model, X_set, y_set, set_name, target_ids):
     """
     Evaluates the model on a given dataset (validation or test) and logs metrics per site.
     """
-    logging.info("--- Evaluating Model on %s SET ---", set_name.upper())
     if X_set.empty or y_set.empty:
         logging.warning("%s set is empty. Skipping evaluation.", set_name.capitalize())
         return None
