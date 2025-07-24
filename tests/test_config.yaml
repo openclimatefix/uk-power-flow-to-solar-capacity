@@ -1,0 +1,41 @@
+project_name: 'power-forecasting-test'
+
+logging_settings:
+  level: 'INFO'
+  format: '%(asctime)s - %(levelname)s - %(message)s'
+  datefmt: '%Y-%m-%d %H:%M:%S'
+
+paths:
+  power_flow_path: 'tests/test_data/power.csv'
+  sites_path: 'tests/test_data/sites.csv'
+  era5_extract_dir: 'tests/test_data/era5_extracted/'
+  skt_files_path: 'tests/test_data/skt_*.nc'
+  model_output_dir: 'models'
+  output_model_filename: 'xgboost_power_forecaster.joblib'
+
+data_ingestion_params:
+  target_transformer_ids:
+    - 'aldreth_primary_11kv_t1'
+    - 'bourn_primary_11kv_t1'
+  analysis_start_date: '2021-01-01'
+  analysis_end_date: '2021-01-01'
+  power_csv_cols:
+    timestamp: 'timestamp'
+    active_power_mw: 'power'
+    tx_id: 'tx_id'
+  era5_vars:
+    - 'tcc'
+    - 'ssrd'
+    - 't2m'
+    - 'skt'
+
+feature_params:
+  target_column: 'power'
+  feature_columns:
+    - 'hour'
+    - 'dayofweek'
+
+model_params:
+  split_dates:
+    train_end: '2022-12-31 23:00:00'
+    val_end: '2023-12-31 23:00:00'

@@ -1,0 +1,7 @@
+timestamp,tx_id,active_power_mw
+2021-01-01 00:00:00+00:00,aldreth_primary_11kv_t1,3.610
+2021-01-01 00:30:00+00:00,aldreth_primary_11kv_t1,3.825
+2021-01-01 01:00:00+00:00,aldreth_primary_11kv_t1,3.565
+2021-01-01 01:30:00+00:00,aldreth_primary_11kv_t1,3.305
+2021-01-01 00:00:00+00:00,bourn_primary_11kv_t1,3.750
+2021-01-01 00:30:00+00:00,bourn_primary_11kv_t1,3.675

@@ -1,0 +1,172 @@
+
+import pandas as pd
+import xgboost as xgb
+from sklearn.model_selection import RandomizedSearchCV, TimeSeriesSplit
+from scipy.stats import uniform, randint, loguniform
+import logging
+from sklearn.metrics import mean_absolute_error, r2_score, mean_squared_error
+import numpy as np
+import os
+import joblib
+
+def split_data(X, y, split_dates):
+    """
+    Splits data into training, validation, and test sets based on dates.
+    """
+    logging.info("Splitting data into training, validation, and test sets...")
+    
+    train_end = pd.to_datetime(split_dates['train_end'], utc=True)
+    val_start = pd.to_datetime(split_dates['val_start'], utc=True)
+    val_end = pd.to_datetime(split_dates['val_end'], utc=True)
+    test_start = pd.to_datetime(split_dates['test_start'], utc=True)
+
+    datetime_idx = X.index.get_level_values('datetime')
+
+    X_train = X[datetime_idx <= train_end]
+    y_train = y[datetime_idx <= train_end]
+
+    X_val = X[(datetime_idx >= val_start) & (datetime_idx <= val_end)]
+    y_val = y[(datetime_idx >= val_start) & (datetime_idx <= val_end)]
+
+    X_test = X[datetime_idx >= test_start]
+    y_test = y[datetime_idx >= test_start]
+
+    # Ensure consistent sorting
+    X_train = X_train.sort_index(level=['site_id', 'datetime'])
+    y_train = y_train.sort_index(level=['site_id', 'datetime'])
+    if not X_val.empty:
+        X_val = X_val.sort_index(level=['site_id', 'datetime'])
+        y_val = y_val.sort_index(level=['site_id', 'datetime'])
+    if not X_test.empty:
+        X_test = X_test.sort_index(level=['site_id', 'datetime'])
+        y_test = y_test.sort_index(level=['site_id', 'datetime'])
+        
+    logging.info("Data splitting complete.")
+    return X_train, y_train, X_val, y_val, X_test, y_test
+
+
+def train_model(X_train, y_train, estimator_params, search_params):
+    """
+    Performs hyperparameter tuning using RandomizedSearchCV and returns the best model.
+    """
+    base_model = xgb.XGBRegressor(**estimator_params)
+    
+    tscv = TimeSeriesSplit(n_splits=search_params['n_cv_splits'])
+    logging.info("Using TimeSeriesSplit with %d splits for cross-validation.", search_params['n_cv_splits'])
+
+    def parse_param_distributions(params_dict):
+        parsed_dict = {}
+        for param, value in params_dict.items():
+            parsed_dict[param] = eval(value, {"uniform": uniform, "randint": randint, "loguniform": loguniform})
+        return parsed_dict
+
+    param_dist = parse_param_distributions(search_params['param_distributions'])
+
+    random_search = RandomizedSearchCV(
+        estimator=base_model,
+        param_distributions=param_dist,
+        n_iter=search_params['n_iterations'],
+        scoring=search_params['scoring'],
+        cv=tscv,
+        random_state=search_params['random_state'],
+        n_jobs=estimator_params.get('n_jobs', -1),
+        verbose=search_params['verbose']
+    )
+
+    logging.info("Starting RandomizedSearchCV with %d iterations...", search_params['n_iterations'])
+    random_search.fit(X_train, y_train)
+
+    logging.info("Best hyperparameters found: %s", random_search.best_params_)
+    logging.info("Best cross-validation RMSE: %.4f", -random_search.best_score_)
+    
+    final_model = random_search.best_estimator_
+    
+    # Display feature importances
+    if hasattr(final_model, 'feature_importances_'):
+        feature_importance_df = pd.DataFrame({
+            'feature': X_train.columns,
+            'importance': final_model.feature_importances_
+        }).sort_values('importance', ascending=False)
+        logging.info("Top 20 features from the tuned model:\n%s", feature_importance_df.head(20))
+
+    return random_search.best_estimator_, random_search.best_params_
+
+
+def retrain_with_constraints(best_params, X_train, y_train, constraint_map, base_params):
+    """
+    Retrains a final XGBoost model using the best hyperparameters and adds
+    monotonic constraints.
+    """
+    logging.info("Defining final model with optimal hyperparameters and monotonic constraints.")
+
+    feature_names = X_train.columns.tolist()
+    
+    # Create constraint tuple based on feature order
+    monotone_constraints = [0] * len(feature_names)
+    for feature, constraint in constraint_map.items():
+        if feature in feature_names:
+            feature_index = feature_names.index(feature)
+            monotone_constraints[feature_index] = constraint
+            logging.info("Applying constraint for '%s': %d", feature, constraint)
+
+    # Combine base params with best found params
+    final_params = base_params.copy()
+    final_params.update(best_params)
+    final_params['monotone_constraints'] = tuple(monotone_constraints)
+
+    final_model = xgb.XGBRegressor(**final_params)
+
+    logging.info("Training final constrained model...")
+    final_model.fit(X_train, y_train)
+    logging.info("Final constrained model trained successfully.")
+    
+    return final_model
+
+
+def evaluate_model(model, X_set, y_set, set_name, target_ids):
+    """
+    Evaluates the model on a given dataset (validation or test) and logs metrics per site.
+    """
+    logging.info("--- Evaluating Model on %s SET ---", set_name.upper())
+    if X_set.empty or y_set.empty:
+        logging.warning("%s set is empty. Skipping evaluation.", set_name.capitalize())
+        return None
+
+    y_pred = model.predict(X_set)
+    results_df = pd.DataFrame({'Actual': y_set, 'Predicted': y_pred}, index=y_set.index)
+
+    for site_id in target_ids:
+        if site_id not in results_df.index.get_level_values('site_id'):
+            continue
+
+        site_df = results_df.loc[site_id]
+        mae = mean_absolute_error(site_df['Actual'], site_df['Predicted'])
+        rmse = np.sqrt(mean_squared_error(site_df['Actual'], site_df['Predicted']))
+        r2 = r2_score(site_df['Actual'], site_df['Predicted'])
+
+        logging.info("Metrics for %s SET - %s:", set_name.upper(), site_id)
+        logging.info("  MAE: %.3f MW", mae)
+        logging.info("  RMSE: %.3f MW", rmse)
+        logging.info("  R-squared: %.3f", r2)
+
+    return results_df
+
+
+def save_model(model, path, filename):
+    """Saves the trained model to a file using joblib."""
+    if not os.path.exists(path):
+        os.makedirs(path)
+    save_path = os.path.join(path, filename)
+    joblib.dump(model, save_path)
+    logging.info("Model saved successfully to: %s", save_path)
+
+
+def load_model(path, filename):
+    """Loads a trained model from a file using joblib."""
+    load_path = os.path.join(path, filename)
+    if not os.path.exists(load_path):
+        logging.error("Model file not found at: %s", load_path)
+        return None
+    model = joblib.load(load_path)
+    logging.info("Model loaded successfully from: %s", load_path)
+    return model

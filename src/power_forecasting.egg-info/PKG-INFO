@@ -1,0 +1,22 @@
+Metadata-Version: 2.4
+Name: power-forecasting
+Version: 0.1.0
+Summary: XGBoost model for power load forecasting from a Jupyter Notebook.
+Author-email: Your Name <you@example.com>
+Requires-Python: >=3.9
+Description-Content-Type: text/markdown
+Requires-Dist: pandas
+Requires-Dist: xgboost
+Requires-Dist: scikit-learn
+Requires-Dist: xarray
+Requires-Dist: netCDF4
+Requires-Dist: matplotlib
+Requires-Dist: pyproj
+Requires-Dist: holidays
+Requires-Dist: scipy
+Requires-Dist: pyyaml
+Requires-Dist: joblib
+Requires-Dist: dask
+Provides-Extra: dev
+Requires-Dist: pytest; extra == "dev"
+Requires-Dist: ruff; extra == "dev"

@@ -1,0 +1,16 @@
+pandas
+xgboost
+scikit-learn
+xarray
+netCDF4
+matplotlib
+pyproj
+holidays
+scipy
+pyyaml
+joblib
+dask
+
+[dev]
+pytest
+ruff
