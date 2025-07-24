@@ -22,7 +22,7 @@ paths:
   power_flow_file: '/content/drive/MyDrive/ukpn-primary-transformer-power-flow-historic-half-hourly.csv'
   sites_file: '/content/drive/MyDrive/grid-and-primary-sites.csv'
   model_output_dir: 'models'
-  output_model_filename: 'xgboost_power_forecaster.joblib'
+  output_model_filename: 'xgboost_power_forecaster.pkl'
   plot_output_dir: 'output_plots'
   processed_features_path: 'data/processed_X.csv'
   processed_target_path: 'data/processed_y.csv'

@@ -2,8 +2,8 @@
 
 import logging
 import os
+import pickle
 
-import joblib
 import numpy as np
 import pandas as pd
 import xgboost as xgb
@@ -154,20 +154,22 @@ def evaluate_model(model, X_set, y_set, set_name, target_ids):
 
 
 def save_model(model, path, filename):
-    """Saves the trained model to a file using joblib."""
+    """Saves trained model using pkl."""
     if not os.path.exists(path):
         os.makedirs(path)
     save_path = os.path.join(path, filename)
-    joblib.dump(model, save_path)
+    with open(save_path, 'wb') as f:
+        pickle.dump(model, f)
     logging.info("Model saved successfully to: %s", save_path)
 
 
 def load_model(path, filename):
-    """Loads a trained model from a file using joblib."""
+    """Loads trained model."""
     load_path = os.path.join(path, filename)
     if not os.path.exists(load_path):
         logging.error("Model file not found at: %s", load_path)
         return None
-    model = joblib.load(load_path)
+    with open(load_path, 'rb') as f:
+        model = pickle.load(f)
     logging.info("Model loaded successfully from: %s", load_path)
     return model
