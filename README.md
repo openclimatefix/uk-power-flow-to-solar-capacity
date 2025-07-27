@@ -19,6 +19,9 @@ A map displaying the initial 20 transformer sites selected for the analysis, cho
 A time-series plot for the Kingsbury site displaying the inverse relationship between net power demand and solar irradiance (`SSRD`) - demonstrating the impact of PV generation.
 ![Power vs Solar Irradiance](./docs/images/power_vs_solar_figure_3.png)
 
+**(Figure 6) Model Forecast Performance**
+Comparing the actual power flow against the XGBoost model's predicted power on the test set for the Marshalswick site - demonstrating high forecast accuracy (LSTM and CNN also considered).
+![Model Forecast Performance](./docs/images/performance_figure_6.png)
 
 ## Technical Architecture
 
