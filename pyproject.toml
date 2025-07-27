@@ -1,15 +1,23 @@
+# --- PROJECT CONFIGURATION --- #
+
 [build-system]
-requires = ["setuptools>=61.0"]
+requires = ["setuptools>=67", "wheel", "setuptools-git-versioning>=2.0,<3"]
 build-backend = "setuptools.build_meta"
 
+# Metadata (see https://peps.python.org/pep-0621/)
 [project]
 name = "power-forecasting"
-version = "0.1.0"
+dynamic = ["version"] # Set automatically using git
 description = "XGBoost model for power load forecasting from a Jupyter Notebook."
-readme = "README.md"
-requires-python = ">=3.9"
+readme = {file = "README.md", content-type = "text/markdown"}
+requires-python = ">=3.12.0"
+license = {text = "MIT License"}
 authors = [
-  { name="Your Name", email="you@example.com" },
+    { name="Your Name", email="you@example.com" }, # TODO: Update with your details
+]
+classifiers = [
+    "Programming Language :: Python :: 3",
+    "License :: OSI Approved :: MIT License",
 ]
 dependencies = [
     "pandas",
@@ -24,18 +32,105 @@ dependencies = [
     "pyyaml",
     "joblib",
     "dask",
-    "tensorflow"    
+    "tensorflow",
+    "loguru >= 0.7.3",
+    "numpy >= 1.23.2",
 ]
 
 [project.optional-dependencies]
 dev = [
+    # Testing
     "pytest",
-    "ruff"
+    "unittest-xml-reporting",
+    # Linting and type checking
+    "mypy",
+    "ruff >= 0.9.2",
+    # LSP Support
+    "python-lsp-server",
+    "pylsp-mypy",
+    "python-lsp-ruff",
 ]
 
+[project.scripts]
+# TODO: Add your project's command-line entry points here if needed
+# power-forecasting-cli = "power_forecasting.main:main"
+
+[project.urls]
+# TODO: Add your project's repository URL
+repository = "https://github.com/your-username/power-forecasting"
+
+[tool.setuptools]
+include-package-data = false
+license-files = []
+
+[tool.setuptools-git-versioning]
+enabled = true
+
+# --- LINTING AND TYPING CONFIGURATION --- #
+
+# MyPy configuration (https://mypy.readthedocs.io/en/stable/index.html)
+[tool.mypy]
+python_version = "3.12"
+dmypy = true
+strict = true
+warn_unreachable = true
+warn_return_any = true
+disallow_untyped_defs = true
+plugins = [
+    "numpy.typing.mypy_plugin",
+]
+
+[[tool.mypy.overrides]]
+# Ignore missing imports for libraries that don't have type stubs
+module = [
+    "fsspec",
+    "s3fs",
+    "zarr",
+    "pyproj", # Added from your dependencies
+    "holidays", # Added from your dependencies
+]
+ignore_missing_imports = true
+
+
+# Ruff configuration (https://beta.ruff.rs/docs/)
 [tool.ruff]
-line-length = 88
+line-length = 100
+indent-width = 4
+exclude = ["__init__.py"]
 
 [tool.ruff.lint]
-select = ["E", "F", "I", "W"]
-ignore = ["E501"]
+select = [ "F", "E", "W", "I", "UP", "ANN", "S", "B", "C4", "COM", "T20", "SIM", "ARG", "DTZ", "Q", "TCH", "D", "RUF" ]
+fixable = ["ALL"]
+ignore = [
+    "D203", "D213", "D215", "D400", "D401", "D404", "D406",
+    "D407", "D408", "D409", "D413",
+]
+
+[tool.ruff.lint.per-file-ignores]
+# Ignore docstring and annotation rules in tests
+"test*" = ["D", "ANN", "S101"] # S101 allows assert statements
+
+[tool.ruff.lint.pydocstyle]
+convention = "google"
+
+[tool.ruff.format]
+quote-style = "double"
+indent-style = "space"
+line-ending = "auto"
+docstring-code-format = true
+docstring-code-line-length = 100
+
+
+# --- DOCUMENTATION CONFIGURATION --- #
+
+[tool.pydoctor]
+# Configuration for pydoctor to generate API documentation
+# TODO: Update the package path to match your project structure
+add-package = ["src/power_forecasting"]
+project-base-dir = "src/power_forecasting"
+docformat = "google"
+html-output = "docs"
+theme = "classic"
+privacy = [
+    "HIDDEN:**.test_*",
+]
