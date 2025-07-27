@@ -20,12 +20,8 @@ A time-series plot for the Kingsbury site displaying the inverse relationship be
 ![Power vs Solar Irradiance](./docs/images/power_vs_solar_figure_3.png)
 
 **(Figure 6) Model Forecast Performance**
-Comparing the actual power flow against the XGBoost model's predicted power on the test set for the Marshalswick site - demonstrating high forecast accuracy.
+Comparing the actual power flow against the XGBoost model's predicted power on the test set for the Marshalswick site - demonstrating high forecast accuracy (LSTM and CNN also considered).
 ![Model Forecast Performance](./docs/images/performance_figure_6.png)
-
-**(Figure A1) Top 25 Feature Importances**
-F-scores of the top 25 most influential features within the trained XGBoost model.
-![Feature Importances](./docs/images/feature_importance_figure_A1.png)
 
 ## Technical Architecture
 
