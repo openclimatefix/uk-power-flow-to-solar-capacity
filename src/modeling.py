@@ -1,4 +1,4 @@
-# Currently for XGBoost only - including intermediate stages
+# XGBoost only - including intermediate stages
 
 import logging
 import os

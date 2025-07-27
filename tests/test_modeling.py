@@ -34,7 +34,7 @@ def test_train_model(mock_feature_data):
 
     estimator_params = {'objective': 'reg:squarederror', 'random_state': 42}
     search_params = {
-        'n_iterations': 1,  # Keep low for fast testing
+        'n_iterations': 1,
         'n_cv_splits': 2,
         'scoring': 'neg_root_mean_squared_error',
         'verbose': 0,
