@@ -28,6 +28,7 @@ paths:
   plot_output_dir: 'output_plots'
   processed_features_path: 'data/processed_X.csv'
   processed_target_path: 'data/processed_y.csv'
+  processed_master_path: 'data/processed_master_df.csv'
 
 # DATA INGESTION PARAMETERS
 
