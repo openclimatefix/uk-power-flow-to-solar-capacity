@@ -43,6 +43,6 @@ Comparing the actual power flow against the XGBoost model's predicted power on t
 Clone repository and install necessary dependencies in editable mode with the `dev` extras.
 
 ```bash
-git clone <repository-url>
+git clone https://github.com/openclimatefix/uk-power-flow-to-solar-capacity
 cd uk-power-flow-to-solar-capacity
-pip install -e "[dev]"
+pip install -e ".[dev]"
