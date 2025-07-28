@@ -109,8 +109,12 @@ def _calculate_and_log_capacity(
     params = config["historical_analogy_params"]
     start_hour, end_hour = params["midday_start_hour"], params["midday_end_hour"]
 
-    midday_low_sun = y_low_sun.between_time(f"{start_hour}:00", f"{end_hour}:00")
-    midday_high_sun = y_high_sun.between_time(f"{start_hour}:00", f"{end_hour}:00")
+    # FIX: Use the 'datetime' level of the index for time-based filtering.
+    dt_index = y_low_sun.index.get_level_values("datetime")
+    midday_mask = (dt_index.hour >= start_hour) & (dt_index.hour <= end_hour)
+
+    midday_low_sun = y_low_sun[midday_mask]
+    midday_high_sun = y_high_sun[midday_mask]
 
     delta = midday_low_sun - midday_high_sun
     capacity_estimate = np.maximum(0, delta).mean()
