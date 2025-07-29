@@ -1,6 +1,7 @@
 # UK Solar Power & Embedded Solar Capacity Estimation
 
 A repository for forecasting primary transformer power using XGBoost and subsequently estimating embedded capacity.
+Core of the approach is utilising the trained model as a counterfactual baseline for capacity estimation.
 
 ## Major Functionality
 
@@ -11,17 +12,21 @@ A repository for forecasting primary transformer power using XGBoost and subsequ
 
 The following graphs from the project's preliminary report illustrate key data and findings.
 
-**(Figure 2) Map of Selected Transformers**
+**(Figure 1) Map of Selected Transformers**
 A map displaying the initial 20 transformer sites selected for the analysis, chosen to ensure geographical diversity as a basis across the UKPN network.
 ![Map of Selected Transformers](./docs/images/map_figure_2.png)
 
-**(Figure 3) Power Reduction vs. Solar Irradiance**
+**(Figure 2) Power Reduction vs. Solar Irradiance**
 A time-series plot for the Kingsbury site displaying the inverse relationship between net power demand and solar irradiance (`SSRD`) - demonstrating the impact of PV generation.
 ![Power vs Solar Irradiance](./docs/images/power_vs_solar_figure_3.png)
 
-**(Figure 6) Model Forecast Performance**
+**(Figure 3) Model Forecast Performance**
 Comparing the actual power flow against the XGBoost model's predicted power on the test set for the Marshalswick site - demonstrating high forecast accuracy (LSTM and CNN also considered).
 ![Model Forecast Performance](./docs/images/performance_figure_6.png)
+
+**(Figure 4) SHAP Summary of Feature Importance**
+A SHAP summary plot for XGBoost model's predictions. It indicates that an interaction between lagged power and cloud cover is the most impactful feature.
+![SHAP Summary Plot](./docs/images/shap_boost.png)
 
 ## Technical Architecture
 
