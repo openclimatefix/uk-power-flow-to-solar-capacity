@@ -86,8 +86,9 @@ module = [
     "fsspec",
     "s3fs",
     "zarr",
-    "pyproj", # Added from your dependencies
-    "holidays", # Added from your dependencies
+    "pyproj",
+    "holidays",
+    "shap",
 ]
 ignore_missing_imports = true
 
