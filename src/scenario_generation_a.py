@@ -20,6 +20,7 @@ from typing import Any
 
 import numpy as np
 import pandas as pd
+import seaborn as sns
 import xarray as xr
 from matplotlib import dates as mdates
 from matplotlib import pyplot as plt
@@ -46,10 +47,11 @@ def _define_extreme_scenarios(
     )
     historical_midday = historical_weather_ds.where(midday_mask, drop=True)
 
-    ssrd_var, tcc_var = (
-        data_cfg["weather_vars_map"]["ssrd"],
-        data_cfg["weather_vars_map"]["tcc"],
-    )
+    ssrd_var = data_cfg["weather_vars_map"]["ssrd"]
+    tcc_var = data_cfg["weather_vars_map"]["tcc"]
+    t2m_var = data_cfg["weather_vars_map"]["t2m"]
+    skt_var = data_cfg["weather_vars_map"]["skt"]
+
     ssrd_high = historical_midday[ssrd_var].quantile(
         analysis_cfg["ssrd_high_percentile"] / 100.0,
     ).item()
@@ -57,12 +59,44 @@ def _define_extreme_scenarios(
         analysis_cfg["tcc_low_percentile"] / 100.0,
     ).item()
 
+    t2m_high = historical_midday[t2m_var].quantile(
+        analysis_cfg.get("temp_high_percentile", 95) / 100.0,
+    ).item()
+    t2m_low = historical_midday[t2m_var].quantile(
+        analysis_cfg.get("temp_low_percentile", 5) / 100.0,
+    ).item()
+
+    skt_high = historical_midday[skt_var].quantile(
+        analysis_cfg.get("temp_high_percentile", 95) / 100.0,
+    ).item()
+    skt_low = historical_midday[skt_var].quantile(
+        analysis_cfg.get("temp_low_percentile", 5) / 100.0,
+    ).item()
+
     scenarios = {
-        "HighSun": {ssrd_var: ssrd_high, tcc_var: tcc_low},
-        "LowSun": {ssrd_var: 0.0, tcc_var: 1.0},
+        "HighSun": {
+            ssrd_var: ssrd_high,
+            tcc_var: tcc_low,
+            t2m_var: t2m_high,
+            skt_var: skt_high,
+        },
+        "LowSun": {
+            ssrd_var: 0.0,
+            tcc_var: 1.0,
+            t2m_var: t2m_low,
+            skt_var: skt_low,
+        },
         "Baseline": None,
     }
-    logging.info(f"Defined scenarios: HighSun SSRD={ssrd_high:.2f}, TCC={tcc_low:.2f}")
+
+    logging.info(
+        "Defined scenarios: HighSun SSRD=%.2f, TCC=%.2f, T2M=%.2f, SKT=%.2f",
+        ssrd_high,
+        tcc_low,
+        t2m_high,
+        skt_high,
+    )
+
     return scenarios
 
 
@@ -216,6 +250,37 @@ def _calculate_and_log_capacity(
     return df_solar_capacity
 
 
+def plot_capacity_distribution(df_solar_capacity: pd.DataFrame, config: dict[str, Any]) -> None:
+    """Plots and saves a histogram of the distribution of embedded solar capacity."""
+    if df_solar_capacity.empty:
+        logging.warning("Solar capacity DataFrame is empty - cannot plot distribution.")
+        return
+
+    plot_cfg = config["plotting"]
+    output_dir = plot_cfg.get("plot_output_dir", "output_plots")
+
+    plt.figure(figsize=(12, 7))
+    sns.set_style("whitegrid")
+
+    sns.histplot(data=df_solar_capacity, x="Embedded_Solar_Capacity_MW", kde=True, bins=8)
+
+    plt.title("Distribution of Estimated Solar Capacity Across Sites", fontsize=18)
+    plt.xlabel("Estimated Embedded Solar Capacity (MW)", fontsize=14)
+    plt.ylabel("Number of Sites", fontsize=14)
+
+    mean_val = df_solar_capacity["Embedded_Solar_Capacity_MW"].mean()
+    median_val = df_solar_capacity["Embedded_Solar_Capacity_MW"].median()
+
+    plt.axvline(mean_val, color="red", linestyle="--", label=f"Mean: {mean_val:.3f} MW")
+    plt.axvline(median_val, color="green", linestyle=":", label=f"Median: {median_val:.3f} MW")
+    plt.legend()
+    plt.tight_layout()
+
+    save_path = f"{output_dir}/capacity_distribution_plot.png"
+    plt.savefig(save_path)
+    plt.close()
+
+
 def run_scenario_analysis(
     model: XGBRegressor, master_df: pd.DataFrame, config: dict[str, Any],
 ) -> pd.DataFrame:
@@ -254,4 +319,8 @@ def run_scenario_analysis(
             _plot_scenario_results(site_results_df, tx_id, config)
 
     df_solar_capacity = _calculate_and_log_capacity(all_sites_simulation_results, config)
+
+    if config["plotting"].get("save_plots", False):
+        plot_capacity_distribution(df_solar_capacity, config)
+
     return df_solar_capacity
