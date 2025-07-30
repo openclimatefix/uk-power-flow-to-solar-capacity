@@ -41,6 +41,9 @@ data_ingestion_params:
     t2m: 'air_temperature'
     skt: 'skin_temperature'
   era5_zip_filenames: []
+  sites_file_encoding: 'latin1'
+  interpolation_limit: 24
+  skt_fill_proxy: 't2m'
 
 feature_params:
   target_column: 'power'

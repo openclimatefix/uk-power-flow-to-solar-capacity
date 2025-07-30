@@ -45,10 +45,10 @@ def split_data(
     X: pd.DataFrame, y: pd.Series, split_dates: dict[str, str],
 ) -> tuple[pd.DataFrame, pd.Series, pd.DataFrame, pd.Series, pd.DataFrame, pd.Series]:
     """Splits data into training, validation, and test sets based on dates."""
-    train_end = pd.to_datetime(split_dates["train_end"], utc=True)
-    val_start = pd.to_datetime(split_dates["val_start"], utc=True)
-    val_end = pd.to_datetime(split_dates["val_end"], utc=True)
-    test_start = pd.to_datetime(split_dates["test_start"], utc=True)
+    train_end = pd.to_datetime(split_dates["train_end"])
+    val_start = pd.to_datetime(split_dates["val_start"])
+    val_end = pd.to_datetime(split_dates["val_end"])
+    test_start = pd.to_datetime(split_dates["test_start"])
 
     datetime_idx = X.index.get_level_values("datetime")
 

@@ -26,6 +26,7 @@ dependencies = [
     "xarray",
     "netCDF4",
     "matplotlib",
+    "seaborn",
     "pyproj",
     "holidays",
     "scipy",

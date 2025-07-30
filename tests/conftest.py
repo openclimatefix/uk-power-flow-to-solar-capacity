@@ -20,6 +20,7 @@ def test_config():
 
 @pytest.fixture(scope="session")
 def setup_test_data(tmpdir_factory, test_config):
+    """Creates mock data files in a temporary directory for tests."""
     temp_dir = tmpdir_factory.mktemp("test_data")
     paths = test_config["paths"]
 
@@ -29,13 +30,25 @@ def setup_test_data(tmpdir_factory, test_config):
     os.makedirs(paths["era5_extract_dir"], exist_ok=True)
 
     power_data = {
-        "timestamp": ["2012-01-01 00:00:00"],
-        "tx_id": ["aldreth_primary_11kv_t1"],
-        "active_power_mw": [3.610],
+        "timestamp": [
+            "2022-08-01 12:00:00",
+            "2022-08-01 12:30:00",
+            "2022-08-01 13:00:00",
+        ],
+        "tx_id": [
+            "aldreth_primary_11kv_t1",
+            "aldreth_primary_11kv_t1",
+            "bourn_primary_11kv_t1",
+        ],
+        "active_power_mw": [3.5, 3.6, 1.2],
     }
     pd.DataFrame(power_data).to_csv(paths["power_flow_path"], index=False)
 
-    sites_data = {"SiteName": ["ALDRETH PRIMARY 33kV"], "Easting": [544836], "Northing": [273370]}
+    sites_data = {
+        "SiteName": ["ALDRETH PRIMARY 33kV", "BOURN PRIMARY 33kV"],
+        "Easting": [544836, 532450],
+        "Northing": [273370, 258990],
+    }
     pd.DataFrame(sites_data).to_csv(paths["sites_path"], index=False)
 
     time_index = pd.to_datetime(pd.date_range("2021-01-01", periods=48, freq="h"))
