@@ -28,6 +28,13 @@ Comparing the actual power flow against the XGBoost model's predicted power on t
 A SHAP summary plot for XGBoost model's predictions. It indicates that an interaction between lagged power and cloud cover is the most impactful feature.
 ![SHAP Summary Plot](./docs/images/shap_boost.png)
 
+**(Figure 5) Scenario Simulation Site Specific**
+![Scenario Simulation Plot](./docs/images/scenario_a.png)
+
+**(Figure 6) Embedded Capacity Distribution**
+![Embedded Capacity Distribution Plot](./docs/images/embedded_dist.png)
+
+
 ## Technical Architecture
 
 * **Source / Main Pipeline**: The project is structured as a series of distinct, scriptable stages: data loading/unzipping, preprocessing, feature engineering, model training, and scenario analysis.
