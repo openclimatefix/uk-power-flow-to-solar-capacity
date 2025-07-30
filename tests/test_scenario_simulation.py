@@ -18,7 +18,14 @@ def test_overwrite_define_scenarios(preprocessed_df, test_config):
     Tests that the weather overwrite method correctly defines scenarios.
     """
     cfg = test_config.copy()
-    cfg["data_ingestion_params"]["weather_vars_map"] = {"ssrd": "ssrd", "tcc": "tcc"}
+
+    cfg["data_ingestion_params"]["weather_vars_map"] = {
+        "ssrd": "ssrd",
+        "tcc": "tcc",
+        "t2m": "t2m",
+        "skt": "skt",
+    }
+
     cfg["scenario_analysis_params"] = cfg["scenario_analysis"]["overwrite_params"]
 
     site_df = preprocessed_df.loc["site_a"]
