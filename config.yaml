@@ -195,6 +195,8 @@ scenario_analysis_params:
   midday_end_hour: 14
   ssrd_high_percentile: 99
   tcc_low_percentile: 1
+  temp_high_percentile: 95
+  temp_low_percentile: 5
 
 historical_analogy_params:
   low_sun_tcc_threshold: 0.95
