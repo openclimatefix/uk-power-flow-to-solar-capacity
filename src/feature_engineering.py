@@ -29,6 +29,41 @@ def create_cyclical_features(df):
     df['dayofyear_sin'] = np.sin(2 * np.pi * df['dayofyear'] / days_in_year)
     df['dayofyear_cos'] = np.cos(2 * np.pi * df['dayofyear'] / days_in_year)
 
+    # Scientifically backed solar position features based on solar geometry
+    # Solar declination angle - Earth's tilt effect (fundamental for PV calculations)
+    day_of_year = datetime_index.dayofyear
+    solar_declination = 23.45 * np.sin(np.radians(360 * (284 + day_of_year) / 365))
+    df['solar_declination'] = solar_declination
+    
+    # Hour angle from solar noon - Earth's rotation effect
+    hour_angle = 15 * (datetime_index.hour - 12)  # 15 degrees per hour
+    df['hour_angle'] = hour_angle
+    
+    # Solar elevation angle for UK (latitude ~52°N) - determines solar irradiance potential
+    uk_latitude = 52.0
+    lat_rad = np.radians(uk_latitude)
+    dec_rad = np.radians(solar_declination)
+    hour_rad = np.radians(hour_angle)
+    
+    # Solar elevation calculation from celestial mechanics
+    sin_elevation = (np.sin(lat_rad) * np.sin(dec_rad) + 
+                    np.cos(lat_rad) * np.cos(dec_rad) * np.cos(hour_rad))
+    
+    # Clip to valid range [-1, 1] to avoid numerical errors
+    sin_elevation = np.clip(sin_elevation, -1, 1)
+    solar_elevation = np.degrees(np.arcsin(sin_elevation))
+    
+    df['solar_elevation'] = solar_elevation
+    df['is_sun_above_horizon'] = (solar_elevation > 0).astype(int)
+    df['is_meaningful_solar'] = (solar_elevation > 10).astype(int)  # >10° for significant PV output
+    
+    # Air mass coefficient - atmospheric effect on solar irradiance
+    zenith_angle = 90 - solar_elevation
+    air_mass = np.where(solar_elevation > 0, 
+                       1 / np.cos(np.radians(zenith_angle)), 
+                       10)  # Default high value when sun is down
+    df['air_mass'] = np.clip(air_mass, 1, 10)  # Cap at reasonable range
+
     return df
 
 
