@@ -15,14 +15,13 @@ def get_site_coordinates(
     if df_sites is None:
         return None
 
-    # Match patterns such as 'BUSH_HOLLOW_11kv_t1'
+    # Match patterns such as 'BUSH_HOLLOW_11kv_t1' or simple name fall back
     match = re.match(
         r"^(.*?)_?(?:primary_)?(?:local_)?(?:grid_)?\d+(\.\d+)?kv_t\d+[a-zA-Z]*",
         tx_id,
         re.IGNORECASE,
     )
     if not match:
-        # Fallback for simpler names  i.e. 'SITE_A_11kv'
         match = re.match(r"^(.*?)_?\d+(\.\d+)?kv", tx_id, re.IGNORECASE)
 
     search_name = match.group(1).replace("_", " ").strip() if match else tx_id.split("_")[0]

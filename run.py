@@ -3,12 +3,12 @@
 This script orchestrates the entire workflow, from data processing to model
 training and scenario analysis, based on command-line arguments.
 """
-import argparse
 import logging
 from typing import Any
 
+import hydra
 import pandas as pd
-import yaml
+from omegaconf import DictConfig
 
 from src.data_loader import load_csv_data, load_era5_data, unzip_era5_files
 from src.feature_engineering import create_features_for_model
@@ -192,33 +192,21 @@ def run_scenarios(config: dict[str, Any]) -> None:
         logging.error("Unknown analysis method in config: '%s'", analysis_method)
 
 
-def main() -> None:
+@hydra.main(config_path="conf", config_name="config", version_base=None)
+def main(config: DictConfig) -> None:
     """Parse command-line arguments and run the selected pipeline stage."""
-    parser = argparse.ArgumentParser(description="Run stages of the power forecasting pipeline.")
-    parser.add_argument(
-        "stage",
-        choices=["process-data", "train", "run-scenarios", "full-pipeline", "predict"],
-        help="The stage of the pipeline to run.",
-    )
-    args = parser.parse_args()
-
-    with open("config.yaml") as f:
-        config = yaml.safe_load(f)
-    setup_logging(config["logging_settings"])
-
-    if args.stage == "process-data":
+    if config.stage == "process-data":
         run_data_processing(config)
-    elif args.stage == "train":
+    elif config.stage == "train":
         run_training(config)
-    elif args.stage == "run-scenarios":
+    elif config.stage == "run-scenarios":
         run_scenarios(config)
-    elif args.stage == "predict":
+    elif config.stage == "predict":
         run_inference(config)
-    elif args.stage == "full-pipeline":
+    elif config.stage == "full-pipeline":
         run_data_processing(config)
         run_training(config)
         run_scenarios(config)
-
 
 if __name__ == "__main__":
     main()

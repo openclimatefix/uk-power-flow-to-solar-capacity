@@ -24,30 +24,28 @@ def test_get_site_coordinates(test_config):
     assert abs(coords["latitude"] - 52.34) < 0.1
 
 
-def test_process_single_site_power(test_config):
+def test_process_single_site_power(setup_test_data):
     """
     Tests power data cleaning, resampling, and filtering.
     """
-    paths = test_config["paths"]
-    data_cfg = test_config["data_ingestion_params"]
+    data_cfg = setup_test_data["data_ingestion_params"]
     df_power, _ = load_csv_data(
-        paths["power_flow_path"], paths["sites_path"], data_cfg["power_csv_cols"],
+        setup_test_data["paths"]["power_flow_path"],
+        setup_test_data["paths"]["sites_path"],
+        data_cfg["power_csv_cols"],
     )
-
-    timestamp_col_name = data_cfg["power_csv_cols"]["timestamp"]
-    df_power[timestamp_col_name] = pd.to_datetime(df_power[timestamp_col_name])
-    df_power = df_power.set_index(timestamp_col_name).tz_localize("UTC").reset_index()
 
     start_dt = pd.to_datetime(data_cfg["analysis_start_date"], utc=True)
     end_dt = pd.to_datetime(data_cfg["analysis_end_date"], utc=True)
 
-    power_series = process_single_site_power(
+    result = process_single_site_power(
         "aldreth_primary_11kv_t1", df_power, start_dt, end_dt,
     )
 
-    assert power_series is not None
-    assert not power_series.empty
-    assert power_series.index.tz is not None
+    assert result is not None
+    assert isinstance(result, pd.Series)
+    assert not result.empty
+    assert result.index.tz is not None
 
 
 def test_handle_missing_values():

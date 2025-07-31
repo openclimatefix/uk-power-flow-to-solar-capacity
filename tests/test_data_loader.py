@@ -64,9 +64,9 @@ def test_load_csv_data_file_not_found(test_config):
     assert df_sites is None
 
 
-def test_load_era5_data_success(test_config):
+def test_load_era5_data_success(setup_test_data):
     """Tests the successful loading of ERA5 NetCDF data."""
-    paths = test_config["paths"]
+    paths = setup_test_data["paths"]
 
     ds_era5 = load_era5_data(paths["era5_extract_dir"], paths["skt_files_path"])
 
