@@ -41,21 +41,17 @@ def split_data(X, y, split_dates):
 
     datetime_idx = X.index.get_level_values('datetime')
 
-    X_train = X[datetime_idx <= train_end]
-    y_train = y[datetime_idx <= train_end]
+    X_train = X[datetime_idx <= train_end].sort_index(level=['site_id', 'datetime'])
+    y_train = y[datetime_idx <= train_end].sort_index(level=['site_id', 'datetime'])
 
     X_val = X[(datetime_idx >= val_start) & (datetime_idx <= val_end)]
     y_val = y[(datetime_idx >= val_start) & (datetime_idx <= val_end)]
-
-    X_test = X[datetime_idx >= test_start]
-    y_test = y[datetime_idx >= test_start]
-
-    # Ensure consistent sorting
-    X_train = X_train.sort_index(level=['site_id', 'datetime'])
-    y_train = y_train.sort_index(level=['site_id', 'datetime'])
     if not X_val.empty:
         X_val = X_val.sort_index(level=['site_id', 'datetime'])
         y_val = y_val.sort_index(level=['site_id', 'datetime'])
+
+    X_test = X[datetime_idx >= test_start]
+    y_test = y[datetime_idx >= test_start]
     if not X_test.empty:
         X_test = X_test.sort_index(level=['site_id', 'datetime'])
         y_test = y_test.sort_index(level=['site_id', 'datetime'])
@@ -105,16 +101,14 @@ def retrain_with_constraints(best_params, X_train, y_train, constraint_map, base
     logging.info("Defining final model with optimal hyperparameters and monotonic constraints.")
 
     feature_names = X_train.columns.tolist()
+    feature_indices = {name: idx for idx, name in enumerate(feature_names)}
 
-    # Create constraint tuple based on feature order
     monotone_constraints = [0] * len(feature_names)
     for feature, constraint in constraint_map.items():
-        if feature in feature_names:
-            feature_index = feature_names.index(feature)
-            monotone_constraints[feature_index] = constraint
+        if feature in feature_indices:
+            monotone_constraints[feature_indices[feature]] = constraint
             logging.info("Applying constraint for '%s': %d", feature, constraint)
 
-    # Combine base params with best found params
     final_params = base_params.copy()
     final_params.update(best_params)
     final_params['monotone_constraints'] = tuple(monotone_constraints)
@@ -136,8 +130,10 @@ def evaluate_model(model, X_set, y_set, set_name, target_ids):
     y_pred = model.predict(X_set)
     results_df = pd.DataFrame({'Actual': y_set, 'Predicted': y_pred}, index=y_set.index)
 
+    available_sites = set(results_df.index.get_level_values('site_id'))
+    
     for site_id in target_ids:
-        if site_id not in results_df.index.get_level_values('site_id'):
+        if site_id not in available_sites:
             continue
 
         site_df = results_df.loc[site_id]
@@ -155,9 +151,9 @@ def evaluate_model(model, X_set, y_set, set_name, target_ids):
 
 def save_model(model, path, filename):
     """Saves trained model using pkl."""
-    if not os.path.exists(path):
-        os.makedirs(path)
     save_path = os.path.join(path, filename)
+    os.makedirs(path, exist_ok=True)
+    
     with open(save_path, 'wb') as f:
         pickle.dump(model, f)
     logging.info("Model saved successfully to: %s", save_path)
@@ -169,6 +165,7 @@ def load_model(path, filename):
     if not os.path.exists(load_path):
         logging.error("Model file not found at: %s", load_path)
         return None
+        
     with open(load_path, 'rb') as f:
         model = pickle.load(f)
     logging.info("Model loaded successfully from: %s", load_path)

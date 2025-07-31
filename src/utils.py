@@ -6,7 +6,8 @@ import os
 import matplotlib.dates as mdates
 import numpy as np
 import pandas as pd
-from matplotlib import plot as plt
+import matplotlib.pyplot as plt
+
 
 
 def inspect_data_summary(all_sites_data, time_coord_name):
