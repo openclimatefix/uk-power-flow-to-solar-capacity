@@ -1,0 +1,130 @@
+# DRAFT CONFIG
+
+# IGNORE FOR NOW
+# JUST RELATED TO NOTEBOOK TRIALS AS OF THE MOMENT
+paths:
+  dataset_path: '/content/drive/MyDrive/final_complete_dataset.parquet'
+  output_path: '/content/drive/MyDrive/tft_ready_data.parquet'
+  results_path: '/content/drive/MyDrive/optuna_results.json'
+  log_file: 'tft_training.log'
+
+# FOR INITIAL TRIAL RUNS PRE SCALING
+num_locations: 5
+train_split: 0.75
+val_split: 0.9
+columns_to_drop: ['latitude', 'longitude']
+
+# TFT Model config - WEEK LOOKBACK - HOUR PREDICTION
+model:
+  static_categoricals: ['location']
+  static_reals: []
+  target: 'active_power_mw'
+  time_idx: 'time_idx'
+  group_ids: ['location']
+  max_encoder_length: 168
+  max_prediction_length: 1
+  
+  time_varying_known_reals:
+    # ERA5 FEATURES - CONVERTED
+    - 'u10'
+    - 'v10'
+    - 'tcc'
+    - 'blh'
+    - 't2m_c'
+    - 'd2m_c'
+    - 'skt_c'
+    - 'msl_hpa'
+    - 'sp_hpa'
+    - 'slhf_w_m2'
+    - 'ssr_w_m2'
+    - 'str_w_m2'
+    - 'sshf_w_m2'
+    - 'ssrd_w_m2'
+    - 'ishf_w_m2'
+    - 'tp_mm'
+    
+    # TEMPORAL RELATED FEATURES
+    - 'hour'
+    - 'dayofweek'
+    - 'dayofyear'
+    - 'month'
+    - 'year'
+    - 'is_weekend'
+    - 'is_holiday'
+    - 'hour_sin'
+    - 'hour_cos'
+    - 'month_sin'
+    - 'month_cos'
+    - 'dayofweek_sin'
+    - 'dayofweek_cos'
+    
+    # WEATHER / TIME INTERACTION FEATURES ETC
+    - 'wind_speed'
+    - 'wind_dir_sin'
+    - 'wind_dir_cos'
+    - 'temp_x_hour_sin'
+    - 'temp_x_hour_cos'
+    - 'irradiance_x_clear_sky'
+    
+    # LAGGED FEATURES
+    - 't2m_c_lag_1h'
+    - 't2m_c_lag_24h'
+    - 't2m_c_roll_mean_3h'
+    - 'wind_speed_lag_1h'
+    - 'wind_speed_lag_24h'
+    - 'wind_speed_roll_mean_3h'
+    - 'ssrd_w_m2_lag_1h'
+    - 'ssrd_w_m2_lag_24h'
+    - 'ssrd_w_m2_roll_mean_3h'
+    
+    # CALCULATED EXTRA FEATURES - CHECK WEATHER_INDEX AFTER
+    - 'solar_elevation_angle'
+    - 'solar_azimuth_angle'
+    - 'solar_zenith_angle'
+    - 'solar_intensity_factor'
+    - 'is_daylight'
+    - 'is_civil_twilight'
+    - 'sunrise_sunset_proximity'
+    - 'daily_max_solar_elevation'
+    - 'weather_index'
+  
+  time_varying_unknown_reals: []
+
+training:
+  batch_size: 32
+  max_epochs: 5
+  reduce_on_plateau_patience: 3
+  early_stopping_patience: 2
+  enable_progress_bar: true
+  enable_checkpointing: false
+
+optuna:
+  n_trials: 10
+  timeout: 3600
+  direction: 'minimize'
+  
+  search_space:
+    learning_rate:
+      type: 'loguniform'
+      low: 1e-4
+      high: 1e-1
+    hidden_size:
+      type: 'categorical'
+      choices: [32, 64, 96, 128]
+    attention_head_size:
+      type: 'categorical'
+      choices: [1, 2, 4]
+    dropout:
+      type: 'uniform'
+      low: 0.1
+      high: 0.3
+    gradient_clip_val:
+      type: 'uniform'
+      low: 0.01
+      high: 1.0
+
+logging:
+  level: 'INFO'
+  format: '%(asctime)s - %(name)s - %(levelname)s - %(message)s'
+  console: true
+  file: true
