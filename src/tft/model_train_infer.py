@@ -35,10 +35,11 @@ gc.collect()
 def load_best_hyperparameters(results_path: str) -> Dict[str, Any]:
     logger.info(f"Loading best hyperparameters from: {results_path}")
     with open(results_path, 'r') as f:
-        optuna_results = json.load(f)
+        ray_results = json.load(f)
     
-    optimal_config = optuna_results['best_params']
-    logger.info("Best parameters from Optuna:")
+    optimal_config = ray_results['best_params']
+    
+    logger.info("Best parameters from Ray Tune:")
     for key, value in optimal_config.items():
         if isinstance(value, float):
             logger.info(f"  {key}: {value:.6f}")
@@ -58,12 +59,10 @@ def create_final_model(training_dataset, optimal_config: Dict[str, Any]):
     # TFT INSTANTIATION WITH BEST PARAMS
     tft_model = TemporalFusionTransformer.from_dataset(
         training_dataset,
-        learning_rate=optimal_config["learning_rate"],
-        hidden_size=optimal_config["hidden_size"], 
-        attention_head_size=optimal_config["attention_head_size"],
-        dropout=optimal_config["dropout"],
-        reduce_on_plateau_patience=6,
-        optimizer="adam"
+        **optimal_config,
+        reduce_on_plateau_patience=4,
+        loss=SMAPE(),
+        optimizer="adamw"
     )
     
     return tft_model
@@ -125,6 +124,11 @@ def save_model(trainer, model, optimal_config: Dict[str, Any],
     
     logger.info(f"Model metadata saved to: {metadata_save_path}")
 
+# FUNCTION FOR FEATURE IMPORTANCE HERE
+
+# FURTHER FEATURE INTERPRATABILITY HERE
+
+# REFER TO EXTERNAL POST PROCESS SCRIPT FOR THIS
 
 def test_prediction(model, val_dataloader):
     # INFER FUNCTION DEFINE - BASE
