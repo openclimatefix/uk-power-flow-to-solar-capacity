@@ -1,11 +1,12 @@
-# DRAFT CONFIG
+# Full TFT related config - updated data post-processing, hyperparam optimisation, training
 
-# IGNORE FOR NOW
-# JUST RELATED TO NOTEBOOK TRIALS AS OF THE MOMENT
+# PATHS
 paths:
-  dataset_path: '/content/drive/MyDrive/final_complete_dataset.parquet'
-  output_path: '/content/drive/MyDrive/tft_ready_data.parquet'
-  results_path: '/content/drive/MyDrive/optuna_results.json'
+  dataset_path: '/home/felix/post-fe-data/'
+
+  output_path: '/home/felix/output/tft_ready_data.parquet'
+  results_path: '/home/felix/output/optuna_results.json'
+
   log_file: 'tft_training.log'
 
 # FOR INITIAL TRIAL RUNS PRE SCALING
@@ -14,7 +15,7 @@ train_split: 0.75
 val_split: 0.9
 columns_to_drop: ['latitude', 'longitude']
 
-# TFT Model config - WEEK LOOKBACK - HOUR PREDICTION
+# TFT Model config - WEEK LOOKBACK / HOUR PREDICTION
 model:
   static_categoricals: ['location']
   static_reals: []
@@ -91,37 +92,53 @@ model:
   time_varying_unknown_reals: []
 
 training:
-  batch_size: 32
-  max_epochs: 5
+  batch_size: 128
+  max_epochs: 25
   reduce_on_plateau_patience: 3
-  early_stopping_patience: 2
+  early_stopping_patience: 5
   enable_progress_bar: true
   enable_checkpointing: false
 
-optuna:
-  n_trials: 10
-  timeout: 3600
-  direction: 'minimize'
-  
+# OPTIMISATION - Search space, constraints etc
+ray:
+  n_trials: 20
+  max_concurrent_trials: 1
+  scheduler:
+    type: 'ASHAScheduler'
+    metric: 'val_loss'
+    mode: 'min'
+    max_t: 8
+    grace_period: 2
+    reduction_factor: 4
   search_space:
     learning_rate:
       type: 'loguniform'
-      low: 1e-4
-      high: 1e-1
+      low: 0.00005
+      high: 0.03
     hidden_size:
-      type: 'categorical'
-      choices: [32, 64, 96, 128]
+      type: 'choice'
+      values: [32, 64, 96, 128, 160, 256]
     attention_head_size:
-      type: 'categorical'
-      choices: [1, 2, 4]
+      type: 'choice'
+      values: [1, 2, 4, 6, 8]
     dropout:
       type: 'uniform'
-      low: 0.1
-      high: 0.3
+      low: 0.05
+      high: 0.4
     gradient_clip_val:
-      type: 'uniform'
-      low: 0.01
-      high: 1.0
+      type: 'loguniform'
+      low: 0.1
+      high: 3.0
+    hidden_continuous_size:
+      type: 'choice'
+      values: [8, 16, 32, 64]
+    lstm_layers:
+      type: 'choice'
+      values: [1, 2, 3]
+    weight_decay:
+      type: 'loguniform'
+      low: 0.000001
+      high: 0.01
 
 logging:
   level: 'INFO'
