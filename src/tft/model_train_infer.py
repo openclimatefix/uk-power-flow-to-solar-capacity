@@ -1,5 +1,5 @@
-
 import gc
+import os
 import json
 import logging
 import warnings
@@ -8,11 +8,21 @@ from typing import Dict, Any
 
 import torch
 import lightning as L
-from pytorch_forecasting import TemporalFusionTransformer
-from pytorch_forecasting.metrics import MAE, SMAPE
+import pandas as pd
+from pytorch_forecasting import TemporalFusionTransformer, TimeSeriesDataSet
+from pytorch_forecasting.metrics import QuantileLoss
 
-with open('config.yaml', 'r') as f:
+
+with open("uk-power-flow-to-solar-capacity/src/tft/config_tft_initial.yaml") as f:
     config = yaml.safe_load(f)
+
+
+warnings.filterwarnings("ignore")
+os.environ["PYTHONWARNINGS"] = "ignore"
+logging.getLogger("pytorch_lightning").setLevel(logging.ERROR)
+logging.getLogger("lightning").setLevel(logging.ERROR)
+logging.getLogger("sklearn").setLevel(logging.ERROR)
+
 
 handlers = []
 if config['logging']['file']:
@@ -20,73 +30,57 @@ if config['logging']['file']:
 if config['logging']['console']:
     handlers.append(logging.StreamHandler())
 
+
 logging.basicConfig(
     level=getattr(logging, config['logging']['level']),
     format=config['logging']['format'],
     handlers=handlers
 )
-logger = logging.getLogger(__name__)
 
-warnings.filterwarnings('ignore')
+
+logger = logging.getLogger(__name__)
 torch.cuda.empty_cache()
 gc.collect()
 
 
-def load_best_hyperparameters(results_path: str) -> Dict[str, Any]:
-    logger.info(f"Loading best hyperparameters from: {results_path}")
-    with open(results_path, 'r') as f:
-        ray_results = json.load(f)
-    
-    optimal_config = ray_results['best_params']
-    
-    logger.info("Best parameters from Ray Tune:")
-    for key, value in optimal_config.items():
-        if isinstance(value, float):
-            logger.info(f"  {key}: {value:.6f}")
-        else:
-            logger.info(f"  {key}: {value}")
-    
-    return optimal_config
+def create_final_model(training_dataset, model_params: Dict[str, Any]):
+    """Instantiates the TFT model with architecture-specific hyperparameters."""
+    logger.info("Instantiating model with optimal hyperparameters...")
 
-
-def save_best_config(optimal_config: Dict[str, Any], save_path: str = 'best_tft_config.json'):
-    with open(save_path, 'w') as f:
-        json.dump(optimal_config, f, indent=2)
-    logger.info(f"Configuration saved to: {save_path}")
-
-
-def create_final_model(training_dataset, optimal_config: Dict[str, Any]):
-    # TFT INSTANTIATION WITH BEST PARAMS
     tft_model = TemporalFusionTransformer.from_dataset(
         training_dataset,
-        **optimal_config,
-        reduce_on_plateau_patience=4,
-        loss=SMAPE(),
-        optimizer="adamw"
+        **model_params,
+        loss=QuantileLoss(),
     )
-    
+
+    tft_model.hparams.learning_rate = model_params["learning_rate"]
+
     return tft_model
 
 
-def train_final_model(model, train_dataloader, val_dataloader, optimal_config: Dict[str, Any]):
-    # TRAINER DEFINE - x4 EPOCHS AFTER
+def train_final_model(model, train_dataloader, val_dataloader, trainer_params: Dict[str, Any]):
+    logger.info("Configuring trainer...")
     trainer = L.Trainer(
-        max_epochs=25,
-        accelerator="gpu" if torch.cuda.is_available() else "cpu",
-        devices=1,
-        gradient_clip_val=optimal_config["gradient_clip_val"],
+        max_epochs=config['training']['max_epochs'],
+        accelerator="gpu",
+        devices="auto",
+        strategy="ddp",
+        precision="bf16-mixed",
+        gradient_clip_val=trainer_params.get("gradient_clip_val", 1.0),
         enable_progress_bar=True,
         callbacks=[
             L.pytorch.callbacks.EarlyStopping(
                 monitor="val_loss",
-                patience=6,
+                patience=config['training']['early_stopping_patience'],
                 mode="min",
                 verbose=True
             )
         ]
     )
     
+    logger.info("Starting model fitting...")
     trainer.fit(model, train_dataloader, val_dataloader)    
+    
     final_val_loss = trainer.callback_metrics.get('val_loss', 'N/A')
     final_train_loss = trainer.callback_metrics.get('train_loss', 'N/A')
     epochs_completed = trainer.current_epoch + 1
@@ -99,14 +93,14 @@ def train_final_model(model, train_dataloader, val_dataloader, optimal_config: D
 
 
 def save_model(trainer, model, optimal_config: Dict[str, Any], 
-                         final_val_loss, final_train_loss, epochs_completed, 
-                         training_dataset):
-    checkpoint_path = "production_tft_model.ckpt"
+               final_val_loss, final_train_loss, epochs_completed, 
+               training_dataset):
+    """Saves the model checkpoint and a separate metadata file."""
+    checkpoint_path = "second_tft_model.ckpt"
     trainer.save_checkpoint(checkpoint_path)
     logger.info(f"Lightning checkpoint saved to: {checkpoint_path}")
     
-    # SAVE TRAINED MODEL
-    metadata_save_path = "production_tft_metadata.pth"
+    metadata_save_path = "second_tft_metadata.pth"
     torch.save({
         'model_state_dict': model.state_dict(),
         'hyperparameters': optimal_config,
@@ -118,28 +112,88 @@ def save_model(trainer, model, optimal_config: Dict[str, Any],
         'training_config': {
             'max_encoder_length': training_dataset.max_encoder_length,
             'max_prediction_length': training_dataset.max_prediction_length,
-            'target': training_dataset.target
+            'target': training_dataset.target,
+            'group_ids': training_dataset.group_ids
         }
     }, metadata_save_path)
     
-    logger.info(f"Model metadata saved to: {metadata_save_path}")
+    logger.info(f"Model metadata and state dict saved to: {metadata_save_path}")
 
-# FUNCTION FOR FEATURE IMPORTANCE HERE
 
-# FURTHER FEATURE INTERPRATABILITY HERE
+if __name__ == "__main__":
 
-# REFER TO EXTERNAL POST PROCESS SCRIPT FOR THIS
+    import numpy as np
 
-def test_prediction(model, val_dataloader):
-    # INFER FUNCTION DEFINE - BASE
-    model.eval()
+    logger.info(f"Loading cached processed data from {config['paths']['output_path']}")
+    try:
+        df_pandas_full = pd.read_parquet(config['paths']['output_path'])
+        logger.info("Successfully loaded cached data.")
+    except FileNotFoundError:
+        logger.error(f"Error: The processed data file was not found at {config['paths']['output_path']}")
+        logger.error("Please run your main optimization script first to process and cache the data.")
+        exit()
+
+    all_locations = df_pandas_full['location'].unique()
+    np.random.seed(42)
+    selected_locations = np.random.choice(all_locations, size=5, replace=False)
+    logger.info(f"Randomly selected 5 sites for training: {selected_locations}")
+    df_pandas = df_pandas_full[df_pandas_full['location'].isin(selected_locations)].copy()
+    logger.info(f"Filtered dataset to {len(df_pandas)} rows.")
+
+    model_config = config['model']
+
+    logger.info("Creating final training and validation datasets...")
+    max_time_idx = df_pandas[model_config['time_idx']].max()
     
-    with torch.no_grad():
-        predictions = model.predict(val_dataloader, mode="prediction", return_x=True)
+    training_cutoff = int(max_time_idx * config["train_split"])
+    validation_cutoff = int(max_time_idx * config["val_split"])
+
+    training_dataset = TimeSeriesDataSet(
+        df_pandas[df_pandas["time_idx"] <= validation_cutoff],
+        time_idx=model_config['time_idx'],
+        target=model_config['target'],
+        group_ids=model_config['group_ids'],
+        max_encoder_length=model_config['max_encoder_length'],
+        max_prediction_length=model_config['max_prediction_length'],
+        static_categoricals=model_config['static_categoricals'],
+        static_reals=model_config['static_reals'],
+        time_varying_known_reals=model_config['time_varying_known_reals'],
+        time_varying_unknown_reals=model_config['time_varying_unknown_reals'],
+        add_relative_time_idx=True,
+        add_target_scales=True,
+        add_encoder_length=True,
+    )
+
+    validation_dataset = TimeSeriesDataSet.from_dataset(
+        training_dataset, df_pandas, predict=False, stop_randomization=True
+    )
+
+    train_dl = training_dataset.to_dataloader(train=True, batch_size=config['training']['batch_size'], num_workers=4)
+    val_dl = validation_dataset.to_dataloader(train=False, batch_size=config['training']['batch_size'], num_workers=4)
+    logger.info("Dataloaders created.")
+
+    # HARDCODED FROM INITIAL RAY TRIALS (FULL FEATURES) - UPDATE ACCORDINGLY
+    optimal_hyperparameters = {
+        "learning_rate": 0.0001,
+        "hidden_size": 16,
+        "attention_head_size": 4,
+        "dropout": 0.0767335,
+        "gradient_clip_val": 0.744715,
+        "hidden_continuous_size": 8,
+        "lstm_layers": 2,
+        "weight_decay": 9.56182e-05
+    }
+
+    logger.info(f"Using parameters: {optimal_hyperparameters}")
+    model_params = optimal_hyperparameters.copy()
+    model_params.pop("gradient_clip_val", None)
+    final_model = create_final_model(training_dataset, model_params)
+
+    trainer, val_loss, train_loss, epochs = train_final_model(
+        final_model, train_dl, val_dl, optimal_hyperparameters
+    )
     
-    if hasattr(predictions, 'prediction'):
-        pred_tensor = predictions.prediction
-        logger.info(f"Predictions shape: {pred_tensor.shape}")
-        logger.info(f"Prediction range: {pred_tensor.min():.3f} to {pred_tensor.max():.3f}")
-    
-    return True
+    save_model(
+        trainer, final_model, optimal_hyperparameters, 
+        val_loss, train_loss, epochs, training_dataset
+    )
