@@ -3,19 +3,113 @@
 # PATHS
 paths:
   dataset_path: '/home/felix/post-fe-data/'
-
   output_path: '/home/felix/output/tft_ready_data.parquet'
   results_path: '/home/felix/output/optuna_results.json'
-
   log_file: 'tft_training.log'
 
 # FOR INITIAL TRIAL RUNS PRE SCALING
-num_locations: 5
+num_locations: 10
 train_split: 0.75
 val_split: 0.9
 columns_to_drop: ['latitude', 'longitude']
 
-# TFT Model config - WEEK LOOKBACK / HOUR PREDICTION
+# DATA PROCESSING CONFIG
+data_processing:
+  random_state: 42
+  parquet_options:
+    split_row_groups: false
+    ignore_metadata_file: true
+  dataloader_options:
+    persistent_workers: true
+    pin_memory_auto: true
+
+# DATASET CREATION OPTIONS
+dataset_options:
+  add_relative_time_idx: true
+  add_target_scales: true
+  add_encoder_length: true
+
+# SYSTEM CONFIG
+system:
+  min_workers_threshold: 2
+  worker_ratio: 0.5 
+
+# # TFT Model config - WEEK LOOKBACK / HOUR PREDICTION
+# model:
+#   static_categoricals: ['location']
+#   static_reals: []
+#   target: 'active_power_mw'
+#   time_idx: 'time_idx'
+#   group_ids: ['location']
+#   max_encoder_length: 168
+#   max_prediction_length: 1
+  
+#   time_varying_known_reals:
+#     # ERA5 FEATURES - CONVERTED
+#     - 'u10'
+#     - 'v10'
+#     - 'tcc'
+#     - 'blh'
+#     - 't2m_c'
+#     - 'd2m_c'
+#     - 'skt_c'
+#     - 'msl_hpa'
+#     - 'sp_hpa'
+#     - 'slhf_w_m2'
+#     - 'ssr_w_m2'
+#     - 'str_w_m2'
+#     - 'sshf_w_m2'
+#     - 'ssrd_w_m2'
+#     - 'ishf_w_m2'
+#     - 'tp_mm'
+    
+#     # TEMPORAL RELATED FEATURES
+#     - 'hour'
+#     - 'dayofweek'
+#     - 'dayofyear'
+#     - 'month'
+#     - 'year'
+#     - 'is_weekend'
+#     - 'is_holiday'
+#     - 'hour_sin'
+#     - 'hour_cos'
+#     - 'month_sin'
+#     - 'month_cos'
+#     - 'dayofweek_sin'
+#     - 'dayofweek_cos'
+    
+#     # WEATHER / TIME INTERACTION FEATURES ETC
+#     - 'wind_speed'
+#     - 'wind_dir_sin'
+#     - 'wind_dir_cos'
+#     - 'temp_x_hour_sin'
+#     - 'temp_x_hour_cos'
+#     - 'irradiance_x_clear_sky'
+    
+#     # LAGGED FEATURES
+#     - 't2m_c_lag_1h'
+#     - 't2m_c_lag_24h'
+#     - 't2m_c_roll_mean_3h'
+#     - 'wind_speed_lag_1h'
+#     - 'wind_speed_lag_24h'
+#     - 'wind_speed_roll_mean_3h'
+#     - 'ssrd_w_m2_lag_1h'
+#     - 'ssrd_w_m2_lag_24h'
+#     - 'ssrd_w_m2_roll_mean_3h'
+    
+#     # CALCULATED EXTRA FEATURES - CHECK WEATHER_INDEX AFTER
+#     - 'solar_elevation_angle'
+#     - 'solar_azimuth_angle'
+#     - 'solar_zenith_angle'
+#     - 'solar_intensity_factor'
+#     - 'is_daylight'
+#     - 'is_civil_twilight'
+#     - 'sunrise_sunset_proximity'
+#     - 'daily_max_solar_elevation'
+#     - 'weather_index'
+  
+#   time_varying_unknown_reals: []
+
 model:
   static_categoricals: ['location']
   static_reals: []
@@ -26,82 +120,58 @@ model:
   max_prediction_length: 1
   
   time_varying_known_reals:
-    # ERA5 FEATURES - CONVERTED
-    - 'u10'
-    - 'v10'
-    - 'tcc'
-    - 'blh'
-    - 't2m_c'
-    - 'd2m_c'
-    - 'skt_c'
-    - 'msl_hpa'
-    - 'sp_hpa'
-    - 'slhf_w_m2'
-    - 'ssr_w_m2'
-    - 'str_w_m2'
-    - 'sshf_w_m2'
-    - 'ssrd_w_m2'
-    - 'ishf_w_m2'
-    - 'tp_mm'
+    # --- CORE WEATHER FEATURES ---
+    - 'tcc' # Total Cloud Cover
+    - 't2m_c' # Temperature
+    - 'ssrd_w_m2' # Surface Solar Radiation Downwards
+    - 'ishf_w_m2' # Instantaneous surface sensible heat flux
+    - 'wind_speed'
+    - 'msl_hpa' # Mean Sea Level Pressure
     
-    # TEMPORAL RELATED FEATURES
-    - 'hour'
-    - 'dayofweek'
-    - 'dayofyear'
-    - 'month'
-    - 'year'
-    - 'is_weekend'
-    - 'is_holiday'
+    # --- TEMPORAL FEATURES ---
     - 'hour_sin'
     - 'hour_cos'
     - 'month_sin'
     - 'month_cos'
     - 'dayofweek_sin'
     - 'dayofweek_cos'
+    - 'year'
+    - 'is_weekend'
+    - 'is_holiday'
     
-    # WEATHER / TIME INTERACTION FEATURES ETC
-    - 'wind_speed'
-    - 'wind_dir_sin'
-    - 'wind_dir_cos'
-    - 'temp_x_hour_sin'
-    - 'temp_x_hour_cos'
-    - 'irradiance_x_clear_sky'
-    
-    # LAGGED FEATURES
-    - 't2m_c_lag_1h'
+    # --- KEY LAGGED & ROLLING FEATURES ---
     - 't2m_c_lag_24h'
     - 't2m_c_roll_mean_3h'
-    - 'wind_speed_lag_1h'
     - 'wind_speed_lag_24h'
     - 'wind_speed_roll_mean_3h'
-    - 'ssrd_w_m2_lag_1h'
     - 'ssrd_w_m2_lag_24h'
     - 'ssrd_w_m2_roll_mean_3h'
-    
-    # CALCULATED EXTRA FEATURES - CHECK WEATHER_INDEX AFTER
+
+    # --- KEY DERIVED FEATURES ---
     - 'solar_elevation_angle'
     - 'solar_azimuth_angle'
     - 'solar_zenith_angle'
     - 'solar_intensity_factor'
     - 'is_daylight'
     - 'is_civil_twilight'
-    - 'sunrise_sunset_proximity'
-    - 'daily_max_solar_elevation'
     - 'weather_index'
   
-  time_varying_unknown_reals: []
+  # CRITICAL: This allows the model to learn from its own recent history.
+  time_varying_unknown_reals:
+    - 'active_power_mw'
 
+# TRAINING GENERAL
 training:
-  batch_size: 128
-  max_epochs: 25
-  reduce_on_plateau_patience: 3
+  batch_size: 1024
+  max_epochs: 100
+  reduce_on_plateau_patience: 4
   early_stopping_patience: 5
   enable_progress_bar: true
   enable_checkpointing: false
 
-# OPTIMISATION - Search space, constraints etc
+# OPTIMISATION - Search space, constraints etc - UPDATED SEARCH SPACE BASED ON INITIAL TRIALS
 ray:
-  n_trials: 20
+  n_trials: 10
   max_concurrent_trials: 1
   scheduler:
     type: 'ASHAScheduler'
@@ -113,35 +183,120 @@ ray:
   search_space:
     learning_rate:
       type: 'loguniform'
-      low: 0.00005
-      high: 0.03
+      low: 0.0005
+      high: 0.005
     hidden_size:
       type: 'choice'
-      values: [32, 64, 96, 128, 160, 256]
+      values: [12, 16, 24, 32]
     attention_head_size:
       type: 'choice'
-      values: [1, 2, 4, 6, 8]
+      values: [4, 8, 12, 16]
     dropout:
       type: 'uniform'
       low: 0.05
-      high: 0.4
+      high: 0.1
     gradient_clip_val:
       type: 'loguniform'
       low: 0.1
       high: 3.0
     hidden_continuous_size:
       type: 'choice'
-      values: [8, 16, 32, 64]
-    lstm_layers:
-      type: 'choice'
-      values: [1, 2, 3]
+      values: [4, 8, 12]
     weight_decay:
       type: 'loguniform'
       low: 0.000001
-      high: 0.01
+      high: 0.0005
+
+# RAY TRIAL TRAINING CONFIG
+ray_training:
+  max_epochs: 25
+  batch_size: 512
+  early_stopping_patience: 3
+  precision: "bf16-mixed"
+  max_workers: 12
+  resources_per_trial:
+    cpu: 12
+    gpu: 2.0
+  storage_path: "/tmp/ray_results"
+  max_failures: 3
+  verbose: 1
+  resume: false
 
 logging:
   level: 'INFO'
   format: '%(asctime)s - %(name)s - %(levelname)s - %(message)s'
   console: true
   file: true
+
+# # OPTIMISATION - Search space, constraints etc
+# ray:
+#   n_trials: 20
+#   max_concurrent_trials: 1
+#   scheduler:
+#     type: 'ASHAScheduler'
+#     metric: 'val_loss'
+#     mode: 'min'
+#     max_t: 8
+#     grace_period: 2
+#     reduction_factor: 4
+#   search_space:
+#     learning_rate:
+#       type: 'loguniform'
+#       low: 0.00005
+#       high: 0.03
+#     hidden_size:
+#       type: 'choice'
+#       values: [32, 64, 96, 128, 160, 256]
+#     attention_head_size:
+#       type: 'choice'
+#       values: [1, 2, 4, 6, 8]
+#     dropout:
+#       type: 'uniform'
+#       low: 0.05
+#       high: 0.4
+#     gradient_clip_val:
+#       type: 'loguniform'
+#       low: 0.1
+#       high: 3.0
+#     hidden_continuous_size:
+#       type: 'choice'
+#       values: [8, 16, 32, 64]
+#     lstm_layers:
+#       type: 'choice'
+#       values: [1, 2, 3]
+#     weight_decay:
+#       type: 'loguniform'
+#       low: 0.000001
+#       high: 0.01
+
+analysis:
+  experiment_path: "/tmp/ray_results/tft_optimization"
+  data_path: '/home/felix/output/tft_ready_data.parquet'
+  
+  metrics:
+    primary_metric: "val_loss"
+    mode: "min"
+  
+  interpretation:
+    reduction: "sum"
+    attention_prediction_horizon: 0
+  
+  correlation:
+    method: "pearson"
+  
+  plots:
+    main_title: "TFT Model Interpretation Analysis"
+    main_title_fontsize: 20
+    correlation_title: "Feature Correlation Matrix" 
+    correlation_title_fontsize: 20
+    correlation_figsize: [20, 15]
+    correlation_colormap: 'coolwarm'
+    correlation_annotate: false
+    show_plots: true
+  
+  save_plots:
+    enabled: false
+    output_dir: "/home/felix/output/plots/"
+    interpretation_filename: "tft_interpretation.png"
+    correlation_filename: "feature_correlation.png"
+    dpi: 300

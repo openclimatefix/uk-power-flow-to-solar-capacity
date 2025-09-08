@@ -17,6 +17,7 @@ from ray import tune
 from ray.tune.schedulers import ASHAScheduler
 import gc
 
+from ray.tune.progress_reporter import CLIReporter 
 from pytorch_forecasting import TemporalFusionTransformer, TimeSeriesDataSet
 
 
@@ -73,8 +74,8 @@ class DataProcessor:
                 self.dataset_path, 
                 index=False,
                 schema="infer",
-                split_row_groups=False,
-                ignore_metadata_file=True,
+                split_row_groups=config["data_processing"]["parquet_options"]["split_row_groups"],
+                ignore_metadata_file=config["data_processing"]["parquet_options"]["ignore_metadata_file"],
             )
         except Exception as e:
             logger.warning(f"First attempt failed: {e}")
@@ -148,9 +149,9 @@ class DataProcessor:
 
 
 def build_search_space(spec: dict) -> dict:
-    """Builds a Ray Tune search space from a dictionary specification."""
     search_space = {}
     for param, settings in spec.items():
+        print(f"Building search space for: {param}")
         search_type = settings.pop("type")
         if search_type == "choice":
             search_space[param] = tune.choice(settings["values"])
@@ -160,11 +161,11 @@ def build_search_space(spec: dict) -> dict:
             search_space[param] = tune.loguniform(settings["low"], settings["high"])
         else:
             raise ValueError(f"Unsupported search space type: {search_type}")
+    print(f"Final search space: {search_space}")
     return search_space
 
 
 class TFTTrainer:
-
     def __init__(self, df: pd.DataFrame):
         self.df = df
         self.num_locations = config["num_locations"]
@@ -174,8 +175,11 @@ class TFTTrainer:
 
     def create_datasets(self):
         """Create training, validation and test datasets"""
-        locations = self.df["location"].unique()[:self.num_locations]
+
+        all_locations = self.df["location"].unique()
+        locations = pd.Series(all_locations).sample(n=self.num_locations, random_state=config["data_processing"]["random_state"]).tolist()
         df_multi = self.df[self.df["location"].isin(locations)].copy()
+
         logger.info(f"Using {len(locations)} locations: {list(locations)}")
         logger.info(f"Dataset size: {len(df_multi):,} rows")
 
@@ -189,7 +193,7 @@ class TFTTrainer:
 
         # TRAINING DATASET
         self.training_dataset = TimeSeriesDataSet(
-            df_multi[df_multi["time_idx"] <= train_cutoff],
+            df_multi[df_multi["time_idx"] <= val_cutoff],
             time_idx=TFTConfig.TIME_IDX,
             target=TFTConfig.TARGET,
             group_ids=TFTConfig.GROUP_IDS,
@@ -199,48 +203,47 @@ class TFTTrainer:
             static_reals=TFTConfig.STATIC_REALS,
             time_varying_known_reals=TFTConfig.TIME_VARYING_KNOWN_REALS,
             time_varying_unknown_reals=TFTConfig.TIME_VARYING_UNKNOWN_REALS,
-            add_relative_time_idx=True,
-            add_target_scales=True,
-            add_encoder_length=True,
+            add_relative_time_idx=config["dataset_options"]["add_relative_time_idx"],
+            add_target_scales=config["dataset_options"]["add_target_scales"],
+            add_encoder_length=config["dataset_options"]["add_encoder_length"],
         )
-
         logger.info(f"Training samples: {len(self.training_dataset)}")
 
         # VALIDATION DATASET
         self.validation_dataset = TimeSeriesDataSet.from_dataset(
             self.training_dataset,
-            df_multi[
-                (df_multi["time_idx"] > train_cutoff) &
-                (df_multi["time_idx"] <= val_cutoff)
-            ],
+            df_multi,
             predict=False,
             stop_randomization=True,
         )
-
         logger.info(f"Validation samples: {len(self.validation_dataset)}")
 
         # TEST DATASET
         self.test_dataset = TimeSeriesDataSet.from_dataset(
             self.training_dataset,
-            df_multi[df_multi["time_idx"] > val_cutoff],
+            df_multi,
             predict=False,
             stop_randomization=True,
         )
-
         logger.info(f"Test samples: {len(self.test_dataset)}")
 
     def create_dataloaders(self):
-        num_workers = min(4, os.cpu_count() // 2) if os.cpu_count() > 2 else 0
-        
+
+        max_workers = config["system"]["max_workers_main"]
+        worker_ratio = config["system"]["worker_ratio"]
+        min_cpu_threshold = config["system"]["min_workers_threshold"]
+        num_workers = min(max_workers, int(os.cpu_count() * worker_ratio)) if os.cpu_count() > min_cpu_threshold else 0
+
+        use_pin_memory = torch.cuda.is_available() if config["data_processing"]["dataloader_options"]["pin_memory_auto"] else False
         train_dataloader = self.training_dataset.to_dataloader(
             train=True, 
             batch_size=config["training"]["batch_size"], 
             num_workers=num_workers,
-            persistent_workers=True if num_workers > 0 else False,
-            pin_memory=torch.cuda.is_available()
+            persistent_workers=config["data_processing"]["dataloader_options"]["persistent_workers"] if num_workers > 0 else False,
+            pin_memory=use_pin_memory
         )
         val_dataloader = self.validation_dataset.to_dataloader(
-            train=False, 
+            train=False,
             batch_size=config["training"]["batch_size"], 
             num_workers=num_workers,
             persistent_workers=True if num_workers > 0 else False,
@@ -258,80 +261,71 @@ class TFTTrainer:
     def optimize_with_ray(self):
         try:
             ray.init(ignore_reinit_error=True)            
-            
             ray_config = config["ray"]
-            ray_data = ray.put(self.df)
-            num_locations = self.num_locations
             
+            train_ds_ref = ray.put(self.training_dataset)
+            val_ds_ref = ray.put(self.validation_dataset)
+
+            reporter = CLIReporter(
+                metric_columns=["val_loss", "training_iteration"],
+                parameter_columns=["learning_rate", "hidden_size", "attention_head_size"]
+            )
+
             def ray_objective_func(config_params):
                 torch.cuda.empty_cache()
                 gc.collect()
                 
                 try:
-                    df = ray.get(ray_data)
-                    locations = df["location"].unique()[:num_locations]
-                    df_multi = df[df["location"].isin(locations)].copy()
-                    max_time_idx = df_multi["time_idx"].max()
-                    cv_end = int(max_time_idx * 0.8)
-                    split_size = cv_end // 4
-                    
-                    cv_scores = []
-                    
-                    for fold in range(2):
-                        train_end = (fold + 2) * split_size
-                        val_start = train_end + 1
-                        val_end = min(val_start + split_size, cv_end)                
-                        train_data = df_multi[df_multi["time_idx"] <= train_end]
-                        val_data = df_multi[(df_multi["time_idx"] > train_end) & (df_multi["time_idx"] <= val_end)]
-                        if len(val_data) == 0:
-                            continue
-                            
-                        fold_train_dataset = TimeSeriesDataSet(
-                            train_data,
-                            time_idx=TFTConfig.TIME_IDX, target=TFTConfig.TARGET,
-                            group_ids=TFTConfig.GROUP_IDS, max_encoder_length=TFTConfig.MAX_ENCODER_LENGTH,
-                            max_prediction_length=TFTConfig.MAX_PREDICTION_LENGTH,
-                            static_categoricals=TFTConfig.STATIC_CATEGORICALS,
-                            static_reals=TFTConfig.STATIC_REALS,
-                            time_varying_known_reals=TFTConfig.TIME_VARYING_KNOWN_REALS,
-                            time_varying_unknown_reals=TFTConfig.TIME_VARYING_UNKNOWN_REALS,
-                            add_relative_time_idx=True, add_target_scales=True,
-                            add_encoder_length=True,
-                        )
+                    train_dataset = ray.get(train_ds_ref)
+                    val_dataset = ray.get(val_ds_ref)
                         
-                        fold_val_dataset = TimeSeriesDataSet.from_dataset(
-                            fold_train_dataset, val_data, predict=False, stop_randomization=True,
-                        )
-                        
-                        # Pass config_params dict directly to the model
-                        model = TemporalFusionTransformer.from_dataset(fold_train_dataset, **config_params)
-                        # Add a non-tunable param back in
-                        model.hparams.reduce_on_plateau_patience = 6
+                    tft_params = {
+                        'learning_rate': config_params['learning_rate'],
+                        'hidden_size': config_params['hidden_size'],
+                        'attention_head_size': config_params['attention_head_size'],
+                        'dropout': config_params['dropout'],
+                        'hidden_continuous_size': config_params['hidden_continuous_size'],
+                        'lstm_layers': config["ray_training"]["lstm_layers"],
+                        'weight_decay': config_params['weight_decay'],
+                    }
+                    model = TemporalFusionTransformer.from_dataset(train_dataset, **tft_params)
 
-                        trainer = L.Trainer(
-                            max_epochs=10, 
-                            accelerator="gpu" if torch.cuda.is_available() else "cpu",
-                            devices=1, 
-                            gradient_clip_val=config_params["gradient_clip_val"],
-                            enable_progress_bar=False, logger=False, enable_checkpointing=False,
-                            callbacks=[L.pytorch.callbacks.EarlyStopping(monitor="val_loss", patience=3, mode="min")],
-                        )
+                    trainer = L.Trainer(
+                        max_epochs=config["ray_training"]["max_epochs"], 
+                        accelerator="gpu",
+                        devices=1,
+                        precision=config["ray_training"]["precision"],
+                        gradient_clip_val=config_params["gradient_clip_val"],
+                        enable_progress_bar=False, 
+                        logger=False, 
+                        enable_checkpointing=True,
+                        callbacks=[L.pytorch.callbacks.EarlyStopping(
+                            monitor="val_loss", 
+                            patience=config["ray_training"]["early_stopping_patience"], 
+                            mode="min"
+                        )],
+                    )
 
-                        num_workers = min(8, os.cpu_count() // 4)
-                        fold_train_dl = fold_train_dataset.to_dataloader(train=True, batch_size=256, num_workers=num_workers)
-                        fold_val_dl = fold_val_dataset.to_dataloader(train=False, batch_size=256, num_workers=num_workers)
-                        
-                        trainer.fit(model, fold_train_dl, fold_val_dl)
-                        val_loss = trainer.callback_metrics.get("val_loss", float("inf"))
-                        cv_scores.append(float(val_loss))                
-                        del model, trainer, fold_train_dataset, fold_val_dataset, fold_train_dl, fold_val_dl
-                        torch.cuda.empty_cache()
-                        gc.collect()
+                    max_workers_ray = config["ray_training"]["max_workers"]
+                    worker_ratio = config["system"]["worker_ratio"]
+                    num_workers = min(max_workers_ray, int(os.cpu_count() * worker_ratio))
+                
+                    train_dl = train_dataset.to_dataloader(
+                        train=True, 
+                        batch_size=config["ray_training"]["batch_size"], 
+                        num_workers=num_workers
+                    )
+
+                    val_dl = val_dataset.to_dataloader(
+                        train=False, 
+                        batch_size=config["ray_training"]["batch_size"], 
+                        num_workers=num_workers
+                    )
                     
-                    mean_cv_score = sum(cv_scores) / len(cv_scores) if cv_scores else float("inf")
-                    
+                    trainer.fit(model, train_dl, val_dl)
+                    val_loss = trainer.callback_metrics.get("val_loss", float("inf"))                                    
                     from ray.air import session
-                    session.report({"val_loss": mean_cv_score, "cv_scores": cv_scores})
+                    session.report({"val_loss": float(val_loss)})
 
                 except Exception as e:
                     logger.error(f"Trial failed with error: {e}")
@@ -357,14 +351,15 @@ class TFTTrainer:
                 config=search_space,
                 num_samples=ray_config["n_trials"],
                 scheduler=scheduler,
-                resources_per_trial={"cpu": 8, "gpu": 1.0},
+                resources_per_trial=config["ray_training"]["resources_per_trial"],
                 max_concurrent_trials=ray_config.get("max_concurrent_trials", 1),
-                max_failures=3,
+                max_failures=config["ray_training"]["max_failures"],
                 raise_on_failed_trial=False,
-                storage_path="/tmp/ray_results",
+                storage_path=config["ray_training"]["storage_path"],
                 name="tft_optimization",
-                verbose=1,
-                resume=True,
+                verbose=config["ray_training"]["verbose"],
+                resume=config["ray_training"]["resume"],
+                progress_reporter=reporter,
             )
             
             best_trial = analysis.get_best_trial("val_loss", "min", "last")
@@ -383,9 +378,8 @@ class TFTTrainer:
 
 
 def main():
-    processor = DataProcessor(config["paths"]["dataset_path"])
-
     # POST PROCESS PRE DATALODERS
+    processor = DataProcessor(config["paths"]["dataset_path"])
     df = processor.load_data()
     processor.check_nan_values(df)
     df_clean = processor.clean_data(df)
@@ -399,7 +393,7 @@ def main():
     # SAVE BEST HPARAMS
     with open(config["paths"]["results_path"], "w") as f:
         json.dump(optimization_results, f, indent=2)
-    logger.info(f"Hyperparameters and configuration saved to: {config['paths']['results_path']}")
+    logger.info(f" Optimal hparams and config saved to: {config['paths']['results_path']}")
 
 
 if __name__ == "__main__":
