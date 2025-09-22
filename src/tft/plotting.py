@@ -1,10 +1,13 @@
 from __future__ import annotations
 
 from pathlib import Path
-from typing import Any
+from typing import Any, Sequence
 
 import numpy as np
 import matplotlib.pyplot as plt
+
+import pandas as pd
+import seaborn as sns
 
 
 def plot_tft_interpretation(results: dict[str, Any], config: dict[str, Any]) -> None:
@@ -73,3 +76,60 @@ def plot_tft_interpretation(results: dict[str, Any], config: dict[str, Any]) -> 
     if show_plots:
         plt.show()
     plt.close()
+
+
+def create_interpretation_plot_from_model(
+    model: Any,
+    val_dataloader: Any,
+    config: dict[str, Any],
+) -> None:
+    analysis_cfg = config.get("analysis", {})
+    interp_cfg = analysis_cfg.get("interpretation", {})
+
+    results = model.interpret_output(
+        val_dataloader,
+        reduction=interp_cfg.get("reduction", "mean"),
+        attention_prediction_horizon=int(interp_cfg.get("attention_prediction_horizon", 1)),
+    )
+    plot_tft_interpretation(results, config)
+
+
+def create_correlation_plot(
+    df: pd.DataFrame,
+    feature_columns: Sequence[str],
+    config: dict[str, Any],
+) -> None:
+    analysis_cfg = config.get("analysis", {})
+    corr_cfg = analysis_cfg.get("correlation", {})
+    plots_cfg = analysis_cfg.get("plots", {})
+    save_cfg = analysis_cfg.get("save_plots", {})
+
+    method = corr_cfg.get("method", "pearson")
+    corr_matrix = df[list(feature_columns)].corr(method=method)
+
+    figsize = tuple(plots_cfg.get("correlation_figsize", (12, 10)))
+    annotate = bool(plots_cfg.get("correlation_annotate", False))
+    cmap = plots_cfg.get("correlation_colormap", "viridis")
+    title = plots_cfg.get("correlation_title", "Feature Correlation")
+    title_fs = int(plots_cfg.get("correlation_title_fontsize", 14))
+    show_plots = bool(plots_cfg.get("show_plots", False))
+
+    save_enabled = bool(save_cfg.get("enabled", True))
+    out_dir = Path(save_cfg.get("output_dir", "."))
+    out_png = out_dir / str(save_cfg.get("correlation_filename", "feature_correlation.png"))
+    dpi = int(save_cfg.get("dpi", 300))
+
+    plt.figure(figsize=figsize)
+    sns.heatmap(corr_matrix, annot=annotate, cmap=cmap)
+    plt.title(title, fontsize=title_fs)
+
+    if save_enabled:
+        _save_plot_current_figure(out_dir, out_png, dpi=dpi)
+    if show_plots:
+        plt.show()
+    plt.close()
+
+
+def _save_plot_current_figure(out_dir: Path, path: Path, *, dpi: int = 300) -> None:
+    out_dir.mkdir(parents=True, exist_ok=True)
+    plt.gcf().savefig(path, dpi=dpi, bbox_inches="tight")

@@ -69,3 +69,29 @@ def load_best_hyperparameters(results_path: str | Path) -> dict[str, Any]:
             logger.info(f"  {key}: {value}")
 
     return optimal_config
+
+
+def restore_ray_best_checkpoint(
+    experiment_path: str | Path,
+    trainable: str,
+    metric: str,
+    mode: str,
+):
+    tuner = tune.Tuner.restore(path=str(experiment_path), trainable=trainable)
+    result_grid = tuner.get_results()
+    best_result = result_grid.get_best_result(metric=metric, mode=mode)
+    best_checkpoint = best_result.get_best_checkpoint(metric=metric, mode=mode)
+    return best_result, best_checkpoint
+
+
+def load_tft_from_checkpoint(checkpoint_dir: str | Path) -> TemporalFusionTransformer:
+    model_path = os.path.join(checkpoint_dir, "checkpoint")
+    return TemporalFusionTransformer.load_from_checkpoint(model_path)
+
+
+def load_parquet(path: str | Path) -> pd.DataFrame:
+    return pd.read_parquet(path)
+
+
+def fmt_metric(val: float, digits: int = 4) -> str:
+    return f"{val:.{digits}f}"
