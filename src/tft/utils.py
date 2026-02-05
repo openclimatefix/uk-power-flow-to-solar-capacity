@@ -1,4 +1,6 @@
 import logging
+import re
+
 from collections.abc import Iterable
 from pathlib import Path
 from typing import Optional, Union
@@ -9,6 +11,7 @@ from omegaconf import DictConfig, ListConfig, OmegaConf
 from pytorch_forecasting import TimeSeriesDataSet
 
 logger = logging.getLogger(__name__)
+_VERSION_RE = re.compile(r"^version_(\d+)$")
 
 
 def intersect_features(
@@ -20,7 +23,7 @@ def intersect_features(
 
     if isinstance(keys, (DictConfig, ListConfig)):
         keys_list: list[str] = [
-            str(k) for k in OmegaConf.to_container(keys, resolve=True)  # type: ignore
+            str(k) for k in OmegaConf.to_container(keys, resolve=True)
         ]
     else:
         keys_list = [str(k) for k in keys]
@@ -36,14 +39,15 @@ def find_resume_checkpoint(base_dir: Path) -> Optional[str]:
     if not base_dir.exists():
         return None
 
-    try:
-        version_dirs = sorted(
-            base_dir.glob("version_*"),
-            key=lambda p: p.stat().st_mtime,
-            reverse=True,
-        )
-    except OSError:
-        version_dirs = []
+    version_dirs: list[Path] = []
+    for p in base_dir.glob("version_*"):
+        if not p.is_dir():
+            continue
+        m = _VERSION_RE.match(p.name)
+        if m:
+            version_dirs.append(p)
+
+    version_dirs.sort(key=lambda p: int(_VERSION_RE.match(p.name).group(1)), reverse=True)
 
     for vdir in version_dirs:
         ckpt_dir = vdir / "checkpoints"
@@ -54,11 +58,15 @@ def find_resume_checkpoint(base_dir: Path) -> Optional[str]:
         if last.exists():
             return str(last)
 
-        candidates = sorted(
-            ckpt_dir.glob("*.ckpt"),
-            key=lambda p: p.stat().st_mtime,
-            reverse=True,
-        )
+        try:
+            candidates = sorted(
+                ckpt_dir.glob("*.ckpt"),
+                key=lambda p: p.stat().st_mtime,
+                reverse=True,
+            )
+        except OSError:
+            candidates = []
+
         if candidates:
             return str(candidates[0])
 
