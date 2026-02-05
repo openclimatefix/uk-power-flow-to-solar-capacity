@@ -1,0 +1,29 @@
+# Python
+__pycache__/
+*.py[cod]
+.venv/
+venv/
+
+# OS junk
+.DS_Store
+Thumbs.db
+
+# Editors
+.vscode/
+.idea/
+
+# Pytest / coverage
+.pytest_cache/
+htmlcov/
+coverage.xml
+.coverage
+
+# Build / packaging
+build/
+uk_power_flow_to_solar_capacity.egg-info/
+
+# Logs & outputs
+*.log
+outputs/
+data/
+tft_training.log

@@ -1,0 +1,116 @@
+
+paths:
+  dataset_path: '/home/felix/output/processed_data_cleaned.parquet'
+  output_path: '/home/felix/output/tft_ready_data.parquet'
+  results_path: '/home/felix/output/optuna_results.json'
+  log_file: 'tft_training.log'
+
+splits:
+  strategy: 'by_time'
+  timestamp_col: 'timestamp'
+  train_start: '2021-01-01 00:00:00'
+  train_end:   '2023-12-31 23:30:00'
+  val_start:   '2024-01-01 00:00:00'
+  val_end:     '2024-12-31 23:30:00'
+  test_start:  '2025-01-01 00:00:00'
+  test_end:    '2025-06-30 23:30:00'
+
+train_split: null
+val_split: null
+
+columns_to_drop: []
+production_locations: 200
+
+model:
+  static_categoricals: []
+  static_reals: []
+  
+  target: 'active_power_mw_clean'
+  time_idx: 'time_idx'
+  group_ids: ['location']
+
+  max_encoder_length: 336
+  max_prediction_length: 2
+
+  attention_head_size: 4
+  hidden_size: 80
+  hidden_continuous_size: 24
+
+  lstm_layers: 2
+  dropout: 0.33039495374357275
+
+  time_varying_known_reals:
+    - 'u10'
+    - 'v10'
+    - 'tcc'
+    - 'blh'
+    - 't2m_c'
+    - 'd2m_c'
+    - 'skt_c'
+    - 'msl_hpa'
+    - 'sp_hpa'
+    - 'slhf_w_m2'
+    - 'ssr_w_m2'
+    - 'str_w_m2'
+    - 'sshf_w_m2'
+    - 'ssrd_w_m2'
+    - 'ishf_w_m2'
+    - 'tp_mm'
+    - 'hour'
+    - 'dayofweek'
+    - 'dayofyear'
+    - 'month'
+    - 'year'
+    - 'is_weekend'
+    - 'is_holiday'
+    - 'hour_sin'
+    - 'hour_cos'
+    - 'month_sin'
+    - 'month_cos'
+    - 'dayofweek_sin'
+    - 'dayofweek_cos'
+    - 'wind_speed'
+    - 'wind_dir_sin'
+    - 'wind_dir_cos'
+    - 'temp_x_hour_sin'
+    - 'temp_x_hour_cos'
+    - 'irradiance_x_clear_sky'
+    - 't2m_c_lag_2h'
+    - 't2m_c_lag_6h'
+    - 'wind_speed_lag_2h'
+    - 'wind_speed_lag_6h'
+    - 'ssrd_w_m2_lag_2h'
+    - 'ssrd_w_m2_lag_6h'
+    - 'solar_elevation_angle'
+    - 'solar_azimuth_angle'
+    - 'solar_zenith_angle'
+    - 'solar_intensity_factor'
+    - 'is_daylight'
+    - 'is_civil_twilight'
+    - 'sunrise_sunset_proximity'
+    - 'daily_max_solar_elevation'
+    - 'weather_index'
+
+  time_varying_unknown_reals: []
+
+training:
+  batch_size: 24
+  max_epochs: 80
+  precision: '16-mixed'
+  accelerator: 'gpu'
+  learning_rate: 0.0018971688457768154
+  weight_decay: 0.00022259504041686183
+  gradient_clip_val: 0.4373306451447869
+  reduce_on_plateau_patience: 4
+  early_stopping_patience: 6
+  enable_progress_bar: true
+  enable_checkpointing: false
+
+ray: null
+optuna: null
+
+logging:
+  level: 'INFO'
+  format: '%(asctime)s - %(name)s - %(levelname)s - %(message)s'
+  console: true
+  file: true

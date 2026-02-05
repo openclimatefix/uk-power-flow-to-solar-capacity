@@ -1,0 +1,37 @@
+paths:
+  base_dir: "data"
+  power_csv: "${paths.base_dir}/power_hh.csv"
+  mapping_csv: "${paths.base_dir}/power_era5_mapping.csv"
+  weather_glob: "${paths.base_dir}/era5_upsampled/*.nc"
+  output_parquet: "${paths.base_dir}/power_weather_combined.parquet"
+
+weather:
+  time_coord: "time"
+  lat_candidates:
+    - latitude
+    - lat
+  lon_candidates:
+    - longitude
+    - lon
+  var_prefix: "weather_"
+
+mapping:
+  required_cols:
+    - era5_lat
+    - era5_lon
+  join_cols:
+    - era5_lat
+    - era5_lon
+
+power:
+  timestamp_col: "timestamp"
+  location_col: "location"
+
+merge:
+  on_power_cols:
+    - location
+    - timestamp
+  how: "inner"
+
+logging:
+  level: "INFO"

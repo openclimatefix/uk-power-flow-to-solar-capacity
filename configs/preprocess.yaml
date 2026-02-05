@@ -1,0 +1,54 @@
+paths:
+  base_data_dir: "/path/to/your/ukpn_data_root"
+  zip_filename: "OneDrive_2025-08-27.zip"
+  extract_dirname: "extracted_ukpn_data"
+
+  agg_csv: "/path/to/your/ukpn_data_root/combined_ukpn_hh_AGGREGATED_BY_LOCATION.csv"
+  geojson: "/path/to/your/ukpn_data_root/ukpn-primary-transformers.geojson"
+  out_match: "/path/to/your/ukpn_data_root/power_locations_with_coordinates.csv"
+  out_unmatched: "/path/to/your/ukpn_data_root/unmatched_power_locations.csv"
+
+  combined_full_csv: "/path/to/your/ukpn_data_root/combined_ukpn_hh_FULL.csv"
+  combined_power_only_csv: "/path/to/your/ukpn_data_root/combined_ukpn_hh_FULL_power_only.csv"
+  combined_reduced_csv: "/path/to/your/ukpn_data_root/combined_ukpn_hh_FULL_reduced.csv"
+  combined_filled_power_csv: "/path/to/your/ukpn_data_root/combined_ukpn_hh_FULL_power_filled.csv"
+  combined_aggregated_location_csv: "/path/to/your/ukpn_data_root/combined_ukpn_hh_AGGREGATED_BY_LOCATION.csv"
+  aggregated_with_coords_csv: "/path/to/your/ukpn_data_root/combined_ukpn_hh_AGGREGATED_BY_LOCATION_with_coords.csv"
+
+processing:
+  fuzzy_threshold: 0.5
+
+  sample_run: true
+  sample_file_limit: 10
+
+  chunk_size_streaming: 50000
+  chunk_size_quick_check: 200000
+  chunk_size_optimized: 200000
+  chunk_size_count_unique: 100000
+  chunk_size_rank: 100000
+  chunk_size_fill_power: 100000
+  chunk_size_aggregate_location: 100000
+
+  power_factor: 0.95
+
+matching:
+  geojson_candidate_name_cols:
+    - tx_id
+    - transformer_id
+    - asset_id
+    - substation
+    - substation_name
+    - name
+    - id
+
+plots:
+  ten_locations:
+    max_locations: 10
+    window_days: 30
+    downsample_step: 3
+    n_cols: 2
+    figsize_base_width: 16
+    figsize_height_per_row: 3
+    line_width: 0.8
+    grid_alpha: 0.4
+    grid_linestyle: "--"
