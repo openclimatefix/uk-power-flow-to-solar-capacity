@@ -2,8 +2,8 @@ import glob
 import logging
 import os
 from collections import defaultdict
+from collections.abc import Iterable
 from pathlib import Path
-from typing import Iterable, Optional, List
 
 import numpy as np
 import pandas as pd
@@ -13,7 +13,7 @@ from omegaconf import DictConfig, OmegaConf
 logger = logging.getLogger(__name__)
 
 
-def load_preprocess_config(config_path: Optional[str] = None) -> DictConfig:
+def load_preprocess_config(config_path: str | None = None) -> DictConfig:
     if config_path is None:
         config_path = Path(__file__).resolve().parents[1] / "configs" / "preprocess.yaml"
     cfg = OmegaConf.load(config_path)
@@ -21,7 +21,7 @@ def load_preprocess_config(config_path: Optional[str] = None) -> DictConfig:
     return cfg
 
 
-def load_merge_map_config(config_path: Optional[str] = None) -> DictConfig:
+def load_merge_map_config(config_path: str | None = None) -> DictConfig:
     if config_path is None:
         config_path = Path(__file__).resolve().parents[1] / "configs" / "merge_map.yaml"
     cfg = OmegaConf.load(config_path)
@@ -117,7 +117,7 @@ def extract_zip(zip_path: str, extract_to: str) -> None:
 
 def analyze_top_level_folders(extract_path: str) -> None:
     top_folders = defaultdict(int)
-    for root, dirs, files in os.walk(extract_path):
+    for root, _dirs, files in os.walk(extract_path):
         rel_root = os.path.relpath(root, extract_path)
         top_level = rel_root.split(os.sep)[0]
         top_folders[top_level] += len(files)
@@ -127,13 +127,13 @@ def analyze_top_level_folders(extract_path: str) -> None:
 
 def find_data_files(
     extract_path: str,
-    data_extensions: Optional[Iterable[str]] = None,
+    data_extensions: Iterable[str] | None = None,
 ) -> list[str]:
     if data_extensions is None:
         data_extensions = {".csv", ".xlsx", ".xls", ".parquet", ".feather", ".h5", ".nc"}
     ext_set = {e.lower() for e in data_extensions}
     data_files: list[str] = []
-    for root, dirs, files in os.walk(extract_path):
+    for root, _dirs, files in os.walk(extract_path):
         for file in files:
             _, ext = os.path.splitext(file)
             if ext.lower() in ext_set:
@@ -171,7 +171,7 @@ def load_power(power_path: str) -> pd.DataFrame:
     return power_df
 
 
-def load_weather_files(weather_glob: str) -> List[Path]:
+def load_weather_files(weather_glob: str) -> list[Path]:
     files = sorted(Path(p) for p in glob.glob(weather_glob))
     if not files:
         raise FileNotFoundError(f"No weather files found for pattern: {weather_glob}")
@@ -206,7 +206,7 @@ def weather_ds_to_dataframe(ds: xr.Dataset, time_coord: str = "time") -> pd.Data
 
 def build_weather_table(weather_glob: str, time_coord: str = "time") -> pd.DataFrame:
     files = load_weather_files(weather_glob)
-    frames: List[pd.DataFrame] = []
+    frames: list[pd.DataFrame] = []
     for path in files:
         logger.info("Loading weather file %s", path)
         with xr.open_dataset(path) as ds:

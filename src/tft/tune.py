@@ -2,21 +2,19 @@ import gc
 import logging
 import types
 import warnings
-
 from pathlib import Path
-from typing import List
+
+import torch
+from lightning.pytorch import Trainer
+from lightning.pytorch.callbacks import ModelCheckpoint
+from pytorch_forecasting import TimeSeriesDataSet
 
 import hydra
 import numpy as np
 import pandas as pd
 import pyarrow as pa
 import pyarrow.dataset as ds
-import torch
-
-from lightning.pytorch import Callback, Trainer
-from lightning.pytorch.callbacks import ModelCheckpoint
 from omegaconf import DictConfig
-from pytorch_forecasting import TimeSeriesDataSet
 
 from src.tft.model import TFTWithGRU
 
@@ -24,19 +22,6 @@ logger = logging.getLogger(__name__)
 
 warnings.filterwarnings("ignore", message="X does not have valid feature names")
 warnings.filterwarnings("ignore", category=UserWarning)
-
-
-def downsample_val_keep_all_locations(
-    df: pd.DataFrame, ts_col: str, loc_col: str, max_rows_per_loc: int = 5000
-) -> pd.DataFrame:
-    out = []
-    for loc, g in df.groupby(loc_col, observed=True, sort=False):
-        if len(g) > max_rows_per_loc:
-            out.append(g.sample(n=max_rows_per_loc, random_state=42))
-        else:
-            out.append(g)
-    df2 = pd.concat(out, ignore_index=True)
-    return df2.sort_values([loc_col, ts_col], kind="mergesort").reset_index(drop=True)
 
 
 def arrow_time_filter(dataset: ds.Dataset, ts_col: str, start: str, end: str):
@@ -50,10 +35,7 @@ def arrow_time_filter(dataset: ds.Dataset, ts_col: str, start: str, end: str):
         else:
             start_ts = start_ts.tz_convert("UTC")
 
-        if end_ts.tzinfo is None:
-            end_ts = end_ts.tz_localize("UTC")
-        else:
-            end_ts = end_ts.tz_convert("UTC")
+        end_ts = end_ts.tz_localize("UTC") if end_ts.tzinfo is None else end_ts.tz_convert("UTC")
 
         start_scalar = pa.scalar(start_ts.to_pydatetime(), type=ts_type)
         end_scalar = pa.scalar(end_ts.to_pydatetime(), type=ts_type)
@@ -65,7 +47,7 @@ def arrow_time_filter(dataset: ds.Dataset, ts_col: str, start: str, end: str):
     return (field >= start_scalar) & (field <= end_scalar)
 
 
-def arrow_location_exclusion_filter(loc_col: str, exclude_locs: List[str]):
+def arrow_location_exclusion_filter(loc_col: str, exclude_locs: list[str]):
     if not exclude_locs:
         return None
     return ~ds.field(loc_col).isin(exclude_locs)
@@ -76,7 +58,7 @@ def load_split(
     ts_col: str,
     start: str,
     end: str,
-    columns: List[str],
+    columns: list[str],
     extra_filter=None,
 ) -> pd.DataFrame:
     filt = arrow_time_filter(dataset, ts_col, start, end)
@@ -145,16 +127,12 @@ def main(cfg: DictConfig) -> None:
     schema_names = set(arrow_ds.schema.names)
 
     cols = (
-        [ts_col, "location"]
-        + list(model_cfg.get("static_reals", []))
-        + list(model_cfg.get("time_varying_known_reals", []))
-        + list(model_cfg.get("time_varying_unknown_reals", []))
-        + [target_col]
+        [ts_col, "location", *list(model_cfg.get("static_reals", [])), *list(model_cfg.get("time_varying_known_reals", [])), *list(model_cfg.get("time_varying_unknown_reals", [])), target_col]
     )
 
     drop_cols = set(cfg.get("columns_to_drop", []) or [])
     cols = [c for c in cols if c not in drop_cols]
-    cols = sorted(set([c for c in cols if c in schema_names]))
+    cols = sorted({c for c in cols if c in schema_names})
 
     required = {ts_col, "location", target_col}
     missing_required = [c for c in required if c not in cols]
@@ -217,16 +195,6 @@ def main(cfg: DictConfig) -> None:
     logger.info(f"Loading checkpoint: {ckpt_path}")
 
     model = TFTWithGRU.load_from_checkpoint(str(ckpt_path))
-
-    original_validation_step = model.validation_step.__func__
-
-    def validation_step(self, batch, batch_idx):
-        if batch_idx % 10 == 0:
-            gc.collect()
-            torch.cuda.empty_cache()
-        return original_validation_step(self, batch, batch_idx)
-
-    model.validation_step = types.MethodType(validation_step, model)
     model.checkpoint_gradient = True
     model.hparams.learning_rate = float(train_cfg.learning_rate) * 0.3
 

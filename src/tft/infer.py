@@ -1,23 +1,23 @@
 import gc
 import logging
 from pathlib import Path
-from typing import Any, Dict, List, Optional, Tuple, Union
+from typing import Any
 
+import torch
+from pytorch_forecasting import TimeSeriesDataSet
+
+import hydra
 import pandas as pd
 import pyarrow as pa
 import pyarrow.parquet as pq
-import torch
-from omegaconf import DictConfig, OmegaConf
-import hydra
-from pytorch_forecasting import TimeSeriesDataSet
-from torch.utils.data import DataLoader
+from omegaconf import DictConfig
 
 from src.tft.model import TFTWithGRU
 
 logger = logging.getLogger(__name__)
 
 
-def read_test_slice(cfg: DictConfig, limit_sites: Optional[List[str]] = None) -> pd.DataFrame:
+def read_test_slice(cfg: DictConfig, limit_sites: list[str] | None = None) -> pd.DataFrame:
     dataset_path = cfg.paths.dataset_path
     m = cfg.model
     freq = pd.Timedelta(minutes=30)
@@ -25,9 +25,9 @@ def read_test_slice(cfg: DictConfig, limit_sites: Optional[List[str]] = None) ->
 
     schema = pq.read_schema(dataset_path)
     available_cols = schema.names
-    
+
     filters = [("location", "in", limit_sites)] if limit_sites is not None else None
-    
+
     df = pd.read_parquet(dataset_path, columns=available_cols, filters=filters)
 
     if df.empty:
@@ -44,7 +44,7 @@ def read_test_slice(cfg: DictConfig, limit_sites: Optional[List[str]] = None) ->
     t1 = test_end + freq * (h_len - 1)
 
     df = df[(df["timestamp"] >= t0) & (df["timestamp"] <= t1)].copy()
-    
+
     time_idx_col = m.time_idx
     if time_idx_col not in df.columns:
         df[time_idx_col] = df.groupby("location", sort=False).cumcount().astype("int64")
@@ -55,10 +55,10 @@ def read_test_slice(cfg: DictConfig, limit_sites: Optional[List[str]] = None) ->
 
 
 def build_datasets(
-    cfg: DictConfig, 
-    df_small: pd.DataFrame, 
+    cfg: DictConfig,
+    df_small: pd.DataFrame,
     model: TFTWithGRU
-) -> Tuple[Optional[TimeSeriesDataSet], int]:
+) -> tuple[TimeSeriesDataSet | None, int]:
     test_start = pd.Timestamp(cfg.splits.test_start)
     ts_col = "timestamp"
     time_idx_col = cfg.model.time_idx
@@ -72,7 +72,7 @@ def build_datasets(
 
     dataset_params = model.hparams.dataset_parameters.copy()
     dataset_params["min_prediction_idx"] = min_pred_idx_global
-    
+
     if "predict" in dataset_params:
         del dataset_params["predict"]
 
@@ -81,17 +81,17 @@ def build_datasets(
         df_small,
         stop_randomization=True,
     )
-    
+
     return pred_ds, min_pred_idx_global
 
 
-def parse_predict_output(result: Any) -> Tuple[torch.Tensor, pd.DataFrame]:
+def parse_predict_output(result: Any) -> tuple[torch.Tensor, pd.DataFrame]:
     if isinstance(result, dict):
         return result["prediction"], result["index"]
-    
+
     if isinstance(result, (tuple, list)) and len(result) >= 2:
         return result[0], result[1]
-        
+
     raise RuntimeError("Unsupported prediction output format")
 
 
@@ -103,7 +103,7 @@ def run_predict_one_chunk(
     batch_size: int,
 ) -> pd.DataFrame:
     pred_ds, min_idx = build_datasets(cfg, df_chunk, model)
-    
+
     if min_idx == -1 or pred_ds is None or len(pred_ds) == 0:
         return pd.DataFrame()
 
@@ -121,7 +121,7 @@ def run_predict_one_chunk(
 
     preds_t, index = parse_predict_output(result)
     preds = preds_t.detach().cpu().numpy()
-    
+
     h_len = int(cfg.model.max_prediction_length)
     group_col = cfg.model.group_ids[0]
     time_idx_col = cfg.model.time_idx
@@ -141,16 +141,16 @@ def run_predict_one_chunk(
         for h in range(h_len):
             ts = key_map.get((loc, t0 + h))
             rows.append({
-                "location": loc, 
-                "timestamp": ts, 
-                "horizon_step": h + 1, 
+                "location": loc,
+                "timestamp": ts,
+                "horizon_step": h + 1,
                 "y_hat": float(preds[i, h])
             })
 
     pred_df = pd.DataFrame(rows).dropna(subset=["timestamp"])
     test_start = pd.Timestamp(cfg.splits.test_start)
     test_end = pd.Timestamp(cfg.splits.test_end)
-    
+
     pred_df = pred_df[
         (pred_df["timestamp"] >= test_start) & (pred_df["timestamp"] <= test_end)
     ].copy()
@@ -160,18 +160,18 @@ def run_predict_one_chunk(
 
 def chunked_predict_and_write(
     cfg: DictConfig,
-    all_sites: List[str],
+    all_sites: list[str],
     sites_per_chunk: int,
     model: TFTWithGRU,
     out_path: Path,
     batch_size: int,
 ) -> None:
     writer = None
-    
+
     for start in range(0, len(all_sites), sites_per_chunk):
         chunk_sites = all_sites[start : start + sites_per_chunk]
         df_chunk = read_test_slice(cfg, limit_sites=chunk_sites)
-        
+
         if df_chunk.empty:
             continue
 
@@ -180,7 +180,7 @@ def chunked_predict_and_write(
             continue
 
         table = pa.Table.from_pandas(pred_df, preserve_index=False)
-        
+
         if writer is None:
             writer = pq.ParquetWriter(out_path, table.schema, compression="snappy")
 
@@ -194,7 +194,7 @@ def chunked_predict_and_write(
 @hydra.main(version_base=None, config_path="../../configs/tft", config_name="tft_model")
 def main(cfg: DictConfig) -> None:
     ckpt_path = Path(cfg.paths.get("inference_ckpt", "production_tft_model.ckpt"))
-    
+
     device = "cuda" if torch.cuda.is_available() else "cpu"
     model = TFTWithGRU.load_from_checkpoint(str(ckpt_path)).to(device)
     model.eval()
@@ -204,7 +204,7 @@ def main(cfg: DictConfig) -> None:
     sites = sorted([str(s) for s in sites])
 
     out_path = Path(cfg.paths.get("output_path", "tft_predictions.parquet"))
-    
+
     chunked_predict_and_write(
         cfg=cfg,
         all_sites=sites,

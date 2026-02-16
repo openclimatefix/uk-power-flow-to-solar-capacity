@@ -13,4 +13,3 @@ def test_sanity_has_main_and_run_sanity_checks():
     assert callable(sanity.run_sanity_checks)
     assert hasattr(sanity, "main")
     assert callable(sanity.main)
-

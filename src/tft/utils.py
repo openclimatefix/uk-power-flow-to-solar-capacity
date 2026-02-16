@@ -1,16 +1,16 @@
 import logging
 import re
-
 from collections.abc import Iterable
 from pathlib import Path
-from typing import Any, Optional, Set, Tuple, Union
+from typing import Any
 
 import lightning.pytorch as pl
+import torch
+from pytorch_forecasting import TimeSeriesDataSet
+
 import numpy as np
 import pandas as pd
-import torch
 from omegaconf import DictConfig, ListConfig, OmegaConf
-from pytorch_forecasting import TimeSeriesDataSet
 
 logger = logging.getLogger(__name__)
 _VERSION_RE = re.compile(r"^version_(\d+)$")
@@ -18,7 +18,7 @@ _VERSION_RE = re.compile(r"^version_(\d+)$")
 
 def intersect_features(
     existing_cols: list[str],
-    keys: Optional[Union[Iterable[str], DictConfig, ListConfig]],
+    keys: Iterable[str] | DictConfig | ListConfig | None,
 ) -> list[str]:
     if keys is None:
         return []
@@ -37,7 +37,7 @@ def intersect_features(
     return [k for k in keys_list if k in existing_cols]
 
 
-def find_resume_checkpoint(base_dir: Path) -> Optional[str]:
+def find_resume_checkpoint(base_dir: Path) -> str | None:
     if not base_dir.exists():
         return None
 
@@ -115,8 +115,8 @@ def ensure_sorted_and_time_idx(df: pd.DataFrame, time_idx_col: str) -> pd.DataFr
     return df
 
 
-def model_used_features(model: torch.nn.Module) -> Set[str]:
-    used: Set[str] = set()
+def model_used_features(model: torch.nn.Module) -> set[str]:
+    used: set[str] = set()
     dp = getattr(model.hparams, "dataset_parameters", {})
     keys = [
         "static_categoricals",
@@ -133,42 +133,41 @@ def model_used_features(model: torch.nn.Module) -> Set[str]:
     return used
 
 
-def parse_predict_output(result: Any) -> Tuple[torch.Tensor, pd.DataFrame]:
+def parse_predict_output(result: Any) -> tuple[torch.Tensor, pd.DataFrame]:
     if isinstance(result, dict):
         preds = result.get("prediction") or result.get("predictions")
         index = result.get("index")
         if preds is not None and torch.is_tensor(preds):
             return preds, index
-    
-    if isinstance(result, (tuple, list)) and len(result) >= 2:
-        if torch.is_tensor(result[0]):
-            return result[0], result[1] if isinstance(result[1], pd.DataFrame) else None
-    
+
+    if isinstance(result, (tuple, list)) and len(result) >= 2 and torch.is_tensor(result[0]):
+        return result[0], result[1] if isinstance(result[1], pd.DataFrame) else None
+
     raise RuntimeError(f"Could not parse predict() output of type {type(result)}")
 
 
 def infer_orientation(df: pd.DataFrame, target_col: str = "active_power_mw_clean") -> int:
     if target_col not in df.columns or "ssrd_w_m2" not in df.columns:
         return 1
-    
+
     valid = df[[target_col, "ssrd_w_m2"]].dropna()
     if len(valid) < 10:
         return 1
-    
+
     corr = valid[target_col].corr(valid["ssrd_w_m2"])
     return 1 if corr >= 0 else -1
 
 
-def fit_calibration(y_true: list[float], y_pred: list[float]) -> Tuple[float, float]:
+def fit_calibration(y_true: list[float], y_pred: list[float]) -> tuple[float, float]:
     if len(y_true) < 2 or len(y_pred) < 2:
         return 1.0, 0.0
-    
+
     y_true_arr = np.array(y_true)
     y_pred_arr = np.array(y_pred)
-    
+
     if np.std(y_pred_arr) < 1e-6:
         return 1.0, 0.0
-    
+
     a = np.cov(y_true_arr, y_pred_arr)[0, 1] / (np.var(y_pred_arr) + 1e-8)
     b = np.mean(y_true_arr) - a * np.mean(y_pred_arr)
     return float(a), float(b)

@@ -1,21 +1,20 @@
-import os
 import logging
+import os
 import warnings
 from collections import defaultdict
 from datetime import datetime
 
-import pandas as pd
 import geopandas as gpd
+import pandas as pd
 
 from .utils import (
-    load_preprocess_config,
     analyze_directory,
-    extract_zip,
     analyze_top_level_folders,
+    extract_zip,
     find_data_files,
     jaccard_token_overlap,
+    load_preprocess_config,
 )
-
 
 warnings.filterwarnings("ignore")
 logging.basicConfig(level=logging.INFO, format="%(asctime)s %(levelname)s %(message)s")
@@ -62,7 +61,7 @@ def combine_all_hh_files(
     logger.info("Combining HH files from %s", base_path)
 
     hh_files: list[str] = []
-    for root, dirs, files in os.walk(base_path):
+    for root, _dirs, files in os.walk(base_path):
         for file in files:
             if file.endswith("_HH_data.csv"):
                 hh_files.append(os.path.join(root, file))
@@ -134,7 +133,7 @@ def combine_hh_files_streaming(
     logger.info("Streaming combination of HH files from %s", base_path)
 
     hh_files: list[str] = []
-    for root, dirs, files in os.walk(base_path):
+    for root, _dirs, files in os.walk(base_path):
         for file in files:
             if file.endswith("_HH_data.csv"):
                 hh_files.append(os.path.join(root, file))
@@ -252,7 +251,7 @@ def check_combined_file(filepath: str | None = None, chunk_size: int | None = No
     min_date: datetime | None = None
     max_date: datetime | None = None
 
-    for chunk_idx, chunk in enumerate(pd.read_csv(filepath, chunksize=chunk_size, parse_dates=["hh"]), start=1):
+    for _chunk_idx, chunk in enumerate(pd.read_csv(filepath, chunksize=chunk_size, parse_dates=["hh"]), start=1):
         total_rows += len(chunk)
         unique_tx_ids.update(chunk["tx_id"].unique())
         chunk_min = chunk["hh"].min()
@@ -404,10 +403,10 @@ def create_location_aggregated_dataset(
     total_rows_output = 0
 
     for chunk in pd.read_csv(input_file, chunksize=chunksize, parse_dates=["hh"]):
-        required_cols = set(location_cols + ["hh", "active_power_kW"])
+        required_cols = {*location_cols, "hh", "active_power_kW"}
         if not required_cols.issubset(chunk.columns):
             continue
-        group_cols = location_cols + ["hh"]
+        group_cols = [*location_cols, "hh"]
         agg = chunk.groupby(group_cols, as_index=False)["active_power_kW"].sum()
         header = not os.path.exists(output_file)
         agg.to_csv(output_file, index=False, mode="a", header=header)

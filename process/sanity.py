@@ -4,11 +4,11 @@ from pathlib import Path
 import pandas as pd
 
 from process.preprocess import (
+    COMBINED_AGG_LOCATION_CSV,
+    COMBINED_FILLED_POWER_CSV,
     COMBINED_FULL_CSV,
     COMBINED_POWER_ONLY_CSV,
     COMBINED_REDUCED_CSV,
-    COMBINED_FILLED_POWER_CSV,
-    COMBINED_AGG_LOCATION_CSV,
 )
 from process.utils import analyze_directory
 

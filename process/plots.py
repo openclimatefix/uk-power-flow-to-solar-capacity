@@ -1,16 +1,15 @@
 import logging
 from pathlib import Path
-from typing import Optional
 
+import matplotlib.pyplot as plt
 import numpy as np
 import pandas as pd
-import matplotlib.pyplot as plt
 from omegaconf import OmegaConf
 
 logger = logging.getLogger(__name__)
 
 
-def _load_default_filepath_from_config() -> Optional[str]:
+def _load_default_filepath_from_config() -> str | None:
     try:
         project_root = Path(__file__).resolve().parent.parent
         cfg_path = project_root / "configs" / "preprocess.yaml"
@@ -22,7 +21,7 @@ def _load_default_filepath_from_config() -> Optional[str]:
 
 
 def plot_ten_locations_fixed(
-    filepath: Optional[str] = None,
+    filepath: str | None = None,
     window_days: int = 30,
     downsample_step: int = 3,
     max_locations: int = 10,
@@ -65,10 +64,7 @@ def plot_ten_locations_fixed(
     n_rows = int(np.ceil(n_plots / n_cols))
 
     fig, axes = plt.subplots(n_rows, n_cols, figsize=(16, 3 * n_rows), sharex=True)
-    if n_plots == 1:
-        axes = [axes]
-    else:
-        axes = axes.flatten()
+    axes = [axes] if n_plots == 1 else axes.flatten()
 
     for i, loc in enumerate(selected_locations):
         ax = axes[i]
