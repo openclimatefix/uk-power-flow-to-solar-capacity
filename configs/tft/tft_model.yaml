@@ -1,45 +1,57 @@
-
 paths:
-  dataset_path: '/home/felix/output/processed_data_cleaned.parquet'
-  output_path: '/home/felix/output/tft_ready_data.parquet'
-  results_path: '/home/felix/output/optuna_results.json'
-  log_file: 'tft_training.log'
+  dataset_path: 'PLACEHOLDER'
+  results_path: 'PLACEHOLDER'
+  log_file: 'PLACEHOLDER'
 
 splits:
   strategy: 'by_time'
   timestamp_col: 'timestamp'
-  train_start: '2021-01-01 00:00:00'
-  train_end:   '2023-12-31 23:30:00'
-  val_start:   '2024-01-01 00:00:00'
-  val_end:     '2024-12-31 23:30:00'
-  test_start:  '2025-01-01 00:00:00'
-  test_end:    '2025-06-30 23:30:00'
+
+  train_start: 'PLACEHOLDER'
+  train_end:   'PLACEHOLDER'
+  val_start:   'PLACEHOLDER'
+  val_end:     'PLACEHOLDER'
+  test_start:  'PLACEHOLDER'
+  test_end:    'PLACEHOLDER'
 
 train_split: null
 val_split: null
 
-columns_to_drop: []
-production_locations: 200
+location_filter:
+  mode: 'all'
+
+columns_to_drop:
+  - 'is_outlier_iqr'
+  - 'is_spike'
+  - 'in_long_zero_run'
+  - 'did_clip'
+  - 'did_spike_smooth'
+  - 'did_zero_interp'
+  - 'cleaned_reason'
+  - 'transformer_lat'
+  - 'transformer_lon'
+
+production_locations: 'PLACEHOLDER'
 
 model:
   static_categoricals: []
-  static_reals: []
-  
+  static_reals:
+    - 'transformer_lat_norm'
+    - 'transformer_lon_norm'
   target: 'active_power_mw_clean'
   time_idx: 'time_idx'
   group_ids: ['location']
 
   max_encoder_length: 336
-  max_prediction_length: 2
-
+  max_prediction_length: 96
   attention_head_size: 4
-  hidden_size: 80
-  hidden_continuous_size: 24
-
-  lstm_layers: 2
-  dropout: 0.33039495374357275
+  hidden_size: 96
+  hidden_continuous_size: 40
+  lstm_layers: 1
+  dropout: 0.0675713855264108
 
   time_varying_known_reals:
+    # Raw NWP
     - 'u10'
     - 'v10'
     - 'tcc'
@@ -56,6 +68,8 @@ model:
     - 'ssrd_w_m2'
     - 'ishf_w_m2'
     - 'tp_mm'
+
+    # Calendar and temporal
     - 'hour'
     - 'dayofweek'
     - 'dayofyear'
@@ -69,18 +83,16 @@ model:
     - 'month_cos'
     - 'dayofweek_sin'
     - 'dayofweek_cos'
+
+    # NWP derived features
     - 'wind_speed'
     - 'wind_dir_sin'
     - 'wind_dir_cos'
     - 'temp_x_hour_sin'
     - 'temp_x_hour_cos'
     - 'irradiance_x_clear_sky'
-    - 't2m_c_lag_2h'
-    - 't2m_c_lag_6h'
-    - 'wind_speed_lag_2h'
-    - 'wind_speed_lag_6h'
-    - 'ssrd_w_m2_lag_2h'
-    - 'ssrd_w_m2_lag_6h'
+
+    # Solar - geometry and temporal
     - 'solar_elevation_angle'
     - 'solar_azimuth_angle'
     - 'solar_zenith_angle'
@@ -89,25 +101,43 @@ model:
     - 'is_civil_twilight'
     - 'sunrise_sunset_proximity'
     - 'daily_max_solar_elevation'
-    - 'weather_index'
+    - 'solar_noon_proximity'
+    - 'seasonal_solar_strength'
+    # - 'solar_efficiency_ratio'
 
-  time_varying_unknown_reals: []
+  time_varying_unknown_reals:
+    # - 'active_power_mw_clean_lag_1h'
+    # - 'active_power_mw_clean_lag_2h'
+    - 't2m_c_lag_2h'
+    - 't2m_c_lag_6h'
+    - 'wind_speed_lag_2h'
+    - 'wind_speed_lag_6h'
+    - 'ssrd_w_m2_lag_2h'
+    - 'ssrd_w_m2_lag_6h'
+
+    # Indices for weather
+    - 'daily_avg_tcc'
+    - 'weather_index'
+    - 'cloud_variability'
+    - 'weather_stability'
+    - 'enhanced_weather_index'
+    - 'weather_index_sin'
+    - 'weather_index_cos'
+    - 'weather_quality_score'
 
 training:
-  batch_size: 24
+  batch_size: 8
   max_epochs: 80
-  precision: '16-mixed'
+  precision: '32-true'
   accelerator: 'gpu'
-  learning_rate: 0.0018971688457768154
-  weight_decay: 0.00022259504041686183
-  gradient_clip_val: 0.4373306451447869
+  learning_rate: 0.00013903520183858512
+  weight_decay: 1.819239528222674e-06
+  gradient_clip_val: 0.973526835000236
   reduce_on_plateau_patience: 4
   early_stopping_patience: 6
   enable_progress_bar: true
-  enable_checkpointing: false
-
-ray: null
-optuna: null
+  head_diversity_lambda: 0.01
+  head_diversity_warmup_epochs: 2
 
 logging:
   level: 'INFO'
