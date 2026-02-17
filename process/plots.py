@@ -10,14 +10,10 @@ logger = logging.getLogger(__name__)
 
 
 def _load_default_filepath_from_config() -> str | None:
-    try:
-        project_root = Path(__file__).resolve().parent.parent
-        cfg_path = project_root / "configs" / "preprocess.yaml"
-        cfg = OmegaConf.load(cfg_path)
-        return cfg.paths.combined_aggregated_location_csv
-    except Exception as e:
-        logger.warning("Could not load default filepath from config: %s", e)
-        return None
+    project_root = Path(__file__).resolve().parent.parent
+    cfg_path = project_root / "configs" / "preprocess.yaml"
+    cfg = OmegaConf.load(cfg_path)
+    return cfg.paths.combined_aggregated_location_csv
 
 
 def plot_ten_locations_fixed(

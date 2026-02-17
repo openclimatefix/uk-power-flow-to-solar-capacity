@@ -1,6 +1,5 @@
 import gc
 import logging
-import types
 import warnings
 from pathlib import Path
 
@@ -127,7 +126,14 @@ def main(cfg: DictConfig) -> None:
     schema_names = set(arrow_ds.schema.names)
 
     cols = (
-        [ts_col, "location", *list(model_cfg.get("static_reals", [])), *list(model_cfg.get("time_varying_known_reals", [])), *list(model_cfg.get("time_varying_unknown_reals", [])), target_col]
+        [ts_col,
+        "location",
+        *list(model_cfg.get("static_reals", [])),
+        *list(model_cfg.get("time_varying_known_reals",
+        [])),
+        *list(model_cfg.get("time_varying_unknown_reals",
+        [])),
+        target_col]
     )
 
     drop_cols = set(cfg.get("columns_to_drop", []) or [])

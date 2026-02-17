@@ -75,24 +75,21 @@ def combine_all_hh_files(
     total_rows = 0
 
     for file_path in hh_files:
-        try:
-            df = pd.read_csv(file_path)
-            required_cols = ["tx_id", "hh", "kva"]
-            missing_cols = [col for col in required_cols if col not in df.columns]
-            if missing_cols:
-                logger.warning("Missing columns %s in file %s", missing_cols, file_path)
-                continue
-            df["hh"] = pd.to_datetime(df["hh"], errors="coerce")
-            before_rows = len(df)
-            df = df.dropna(subset=["hh"])
-            after_rows = len(df)
-            dropped = before_rows - after_rows
-            if dropped > 0:
-                logger.info("Dropped %d rows with invalid hh in %s", dropped, file_path)
-            total_rows += after_rows
-            combined_df = pd.concat([combined_df, df], ignore_index=True)
-        except Exception as e:
-            logger.error("Error reading file %s: %s", file_path, e)
+        df = pd.read_csv(file_path)
+        required_cols = ["tx_id", "hh", "kva"]
+        missing_cols = [col for col in required_cols if col not in df.columns]
+        if missing_cols:
+            logger.warning("Missing columns %s in file %s", missing_cols, file_path)
+            continue
+        df["hh"] = pd.to_datetime(df["hh"], errors="coerce")
+        before_rows = len(df)
+        df = df.dropna(subset=["hh"])
+        after_rows = len(df)
+        dropped = before_rows - after_rows
+        if dropped > 0:
+            logger.info("Dropped %d rows with invalid hh in %s", dropped, file_path)
+        total_rows += after_rows
+        combined_df = pd.concat([combined_df, df], ignore_index=True)
 
     if combined_df.empty:
         logger.warning("No data combined")
@@ -146,24 +143,21 @@ def combine_hh_files_streaming(
     first_chunk_written = False
 
     for file_path in hh_files:
-        try:
-            for chunk in pd.read_csv(file_path, chunksize=chunk_size):
-                required_cols = ["tx_id", "hh", "kva"]
-                if not all(col in chunk.columns for col in required_cols):
-                    continue
-                chunk["hh"] = pd.to_datetime(chunk["hh"], errors="coerce")
-                chunk = chunk.dropna(subset=["hh"])
-                unique_tx_ids.update(chunk["tx_id"].unique())
-                total_rows_written += len(chunk)
-                chunk = chunk.sort_values(by=["tx_id", "hh"])
-                mode = "w" if not first_chunk_written else "a"
-                header = not first_chunk_written
-                chunk.to_csv(output_path, mode=mode, index=False, header=header)
-                first_chunk_written = True
-        except Exception as e:
-            logger.error("Error reading file %s: %s", file_path, e)
+        for chunk in pd.read_csv(file_path, chunksize=chunk_size):
+            required_cols = ["tx_id", "hh", "kva"]
+            if not all(col in chunk.columns for col in required_cols):
+                continue
+            chunk["hh"] = pd.to_datetime(chunk["hh"], errors="coerce")
+            chunk = chunk.dropna(subset=["hh"])
+            unique_tx_ids.update(chunk["tx_id"].unique())
+            total_rows_written += len(chunk)
+            chunk = chunk.sort_values(by=["tx_id", "hh"])
+            mode = "w" if not first_chunk_written else "a"
+            header = not first_chunk_written
+            chunk.to_csv(output_path, mode=mode, index=False, header=header)
+            first_chunk_written = True
 
-    logger.info("Streaming combination complete: %d rows, %d transformers", total_rows_written, len(unique_tx_ids))
+    logger.info("Streaming: %d rows, %d transformers", total_rows_written, len(unique_tx_ids))
     return output_path, {
         "num_files": len(hh_files),
         "total_rows": total_rows_written,
@@ -229,7 +223,10 @@ def create_optimized_versions_streaming(
 
         reduced_chunk = chunk.copy()
         numeric_cols = reduced_chunk.select_dtypes(include=["int64", "float64"]).columns
-        reduced_chunk[numeric_cols] = reduced_chunk[numeric_cols].apply(pd.to_numeric, downcast="float")
+        reduced_chunk[numeric_cols] = reduced_chunk[numeric_cols].apply(
+            pd.to_numeric,
+            downcast="float"
+        )
         header_reduced = not os.path.exists(reduced_path)
         reduced_chunk.to_csv(reduced_path, mode="a", header=header_reduced, index=False)
 
@@ -251,7 +248,14 @@ def check_combined_file(filepath: str | None = None, chunk_size: int | None = No
     min_date: datetime | None = None
     max_date: datetime | None = None
 
-    for _chunk_idx, chunk in enumerate(pd.read_csv(filepath, chunksize=chunk_size, parse_dates=["hh"]), start=1):
+    for _chunk_idx, chunk in enumerate(
+        pd.read_csv(
+            filepath,
+            chunksize=chunk_size,
+            parse_dates=["hh"]
+            ),
+            start=1
+        ):
         total_rows += len(chunk)
         unique_tx_ids.update(chunk["tx_id"].unique())
         chunk_min = chunk["hh"].min()
@@ -284,10 +288,7 @@ def check_file_variants() -> None:
             continue
         file_size = os.path.getsize(filepath) / (1024 * 1024)
         logger.info("File %s exists, size %.2f MB", filepath, file_size)
-        try:
-            pd.read_csv(filepath, nrows=5)
-        except Exception as e:
-            logger.error("Error reading file %s: %s", filepath, e)
+        pd.read_csv(filepath, nrows=5)
 
 
 def count_unique_tx_ids(filepath: str | None = None, chunk_size: int | None = None) -> set[str]:
@@ -302,7 +303,10 @@ def count_unique_tx_ids(filepath: str | None = None, chunk_size: int | None = No
     return unique_tx_ids
 
 
-def get_all_unique_tx_ids_alphabetically(filepath: str | None = None, chunk_size: int | None = None) -> list[str]:
+def get_all_unique_tx_ids_alphabetically(
+    filepath: str | None = None,
+    chunk_size: int | None = None
+    ) -> list[str]:
     unique_tx_ids = count_unique_tx_ids(filepath=filepath, chunk_size=chunk_size)
     unique_tx_ids_sorted = sorted(unique_tx_ids)
     logger.info("Unique tx_id count: %d", len(unique_tx_ids_sorted))
@@ -333,8 +337,14 @@ def rank_all_transformers_by_completeness(
         fraction = non_nan / total if total > 0 else 0.0
         summary_data.append((tx_id, total, non_nan, fraction))
 
-    summary_df = pd.DataFrame(summary_data, columns=["tx_id", "total_points", "non_nan_points", "fraction_non_nan"])
-    summary_df = summary_df.sort_values(by=["fraction_non_nan", "non_nan_points"], ascending=[False, False]).reset_index(drop=True)
+    summary_df = pd.DataFrame(
+        summary_data,
+        columns=["tx_id", "total_points", "non_nan_points", "fraction_non_nan"]
+    )
+    summary_df = summary_df.sort_values(
+        by=["fraction_non_nan", "non_nan_points"],
+        ascending=[False, False]
+    ).reset_index(drop=True)
     output_path = os.path.join(BASE_DATA_DIR, "transformer_completeness_summary.csv")
     summary_df.to_csv(output_path, index=False)
     logger.info("Completeness summary saved to %s", output_path)
@@ -412,7 +422,7 @@ def create_location_aggregated_dataset(
         agg.to_csv(output_file, index=False, mode="a", header=header)
         total_rows_output += len(agg)
 
-    logger.info("Location-aggregated dataset created at %s with %d rows", output_file, total_rows_output)
+    logger.info("Aggregated dataset created at %s with %d rows", output_file, total_rows_output)
 
 
 def inspect_geojson_file(filepath: str | None = None) -> gpd.GeoDataFrame:
@@ -495,7 +505,11 @@ def match_locations_to_geo(
 
     df_matches = pd.DataFrame(matches)
     df_unmatched = pd.DataFrame(unmatched)
-    logger.info("Location matching complete: %d matched, %d unmatched", len(df_matches), len(df_unmatched))
+    logger.info(
+        "Location matching complete: %d matched, %d unmatched",
+        len(df_matches),
+        len(df_unmatched)
+    )
     return df_matches, df_unmatched
 
 

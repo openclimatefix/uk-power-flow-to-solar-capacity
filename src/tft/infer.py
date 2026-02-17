@@ -1,7 +1,6 @@
 import gc
 import logging
 from pathlib import Path
-from typing import Any
 
 import torch
 from pytorch_forecasting import TimeSeriesDataSet
@@ -85,7 +84,7 @@ def build_datasets(
     return pred_ds, min_pred_idx_global
 
 
-def parse_predict_output(result: Any) -> tuple[torch.Tensor, pd.DataFrame]:
+def parse_predict_output(result) -> tuple[torch.Tensor, pd.DataFrame]:
     if isinstance(result, dict):
         return result["prediction"], result["index"]
 

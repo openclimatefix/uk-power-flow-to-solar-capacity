@@ -31,19 +31,15 @@ def check_csv_basic(path: str | Path, nrows: int = 100) -> pd.DataFrame | None:
     if not p.exists():
         logger.warning("Cannot inspect CSV, file missing: %s", p)
         return None
-    try:
-        df = pd.read_csv(p, nrows=nrows)
-        logger.info(
-            "Loaded sample from %s: %d rows, %d columns. Columns: %s",
-            p,
-            len(df),
-            df.shape[1],
-            list(df.columns),
-        )
-        return df
-    except Exception as exc:
-        logger.error("Failed to read CSV %s: %s", p, exc)
-        return None
+    df = pd.read_csv(p, nrows=nrows)
+    logger.info(
+        "Loaded sample from %s: %d rows, %d columns. Columns: %s",
+        p,
+        len(df),
+        df.shape[1],
+        list(df.columns),
+    )
+    return df
 
 
 def run_sanity_checks() -> None:
