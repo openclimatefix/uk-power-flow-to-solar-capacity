@@ -12,6 +12,7 @@ import pyarrow.parquet as pq
 from omegaconf import DictConfig
 
 from src.tft.model import TFTWithGRU
+from src.tft.utils import parse_predict_output
 
 logger = logging.getLogger(__name__)
 
@@ -82,16 +83,6 @@ def build_datasets(
     )
 
     return pred_ds, min_pred_idx_global
-
-
-def parse_predict_output(result) -> tuple[torch.Tensor, pd.DataFrame]:
-    if isinstance(result, dict):
-        return result["prediction"], result["index"]
-
-    if isinstance(result, (tuple, list)) and len(result) >= 2:
-        return result[0], result[1]
-
-    raise RuntimeError("Unsupported prediction output format")
 
 
 @torch.inference_mode()

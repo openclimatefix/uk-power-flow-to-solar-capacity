@@ -9,13 +9,13 @@ from lightning.pytorch.callbacks import ModelCheckpoint
 from pytorch_forecasting import TimeSeriesDataSet
 
 import hydra
-import numpy as np
 import pandas as pd
 import pyarrow as pa
 import pyarrow.dataset as ds
 from omegaconf import DictConfig
 
 from src.tft.model import TFTWithGRU
+from src.tft.utils import ensure_time_idx_from_origin
 
 logger = logging.getLogger(__name__)
 
@@ -23,7 +23,7 @@ warnings.filterwarnings("ignore", message="X does not have valid feature names")
 warnings.filterwarnings("ignore", category=UserWarning)
 
 
-def arrow_time_filter(dataset: ds.Dataset, ts_col: str, start: str, end: str):
+def arrow_time_filter(dataset: ds.Dataset, ts_col: str, start: str, end: str) -> ds.Expression:
     ts_type = dataset.schema.field(ts_col).type
     start_ts = pd.Timestamp(start)
     end_ts = pd.Timestamp(end)
@@ -46,7 +46,7 @@ def arrow_time_filter(dataset: ds.Dataset, ts_col: str, start: str, end: str):
     return (field >= start_scalar) & (field <= end_scalar)
 
 
-def arrow_location_exclusion_filter(loc_col: str, exclude_locs: list[str]):
+def arrow_location_exclusion_filter(loc_col: str, exclude_locs: list[str]) -> ds.Expression | None:
     if not exclude_locs:
         return None
     return ~ds.field(loc_col).isin(exclude_locs)
@@ -58,43 +58,13 @@ def load_split(
     start: str,
     end: str,
     columns: list[str],
-    extra_filter=None,
+    extra_filter: ds.Expression | None = None,
 ) -> pd.DataFrame:
     filt = arrow_time_filter(dataset, ts_col, start, end)
     if extra_filter is not None:
         filt = filt & extra_filter
     table = dataset.to_table(columns=columns, filter=filt)
     return table.to_pandas(split_blocks=True, self_destruct=True)
-
-
-def ensure_time_idx(
-    df: pd.DataFrame,
-    ts_col: str,
-    time_idx_col: str,
-    origin_utc: pd.Timestamp,
-    freq_minutes: int = 30,
-) -> pd.DataFrame:
-    if time_idx_col in df.columns:
-        return df
-
-    if ts_col not in df.columns:
-        raise KeyError(f"Timestamp column '{ts_col}' missing from dataframe.")
-
-    ts = df[ts_col]
-
-    if getattr(ts.dtype, "tz", None) is not None:
-        if origin_utc.tzinfo is None:
-            origin_utc = origin_utc.tz_localize("UTC")
-        else:
-            origin_utc = origin_utc.tz_convert("UTC")
-        delta = ts - origin_utc
-    else:
-        origin_naive = origin_utc.tz_convert(None) if origin_utc.tzinfo is not None else origin_utc
-        delta = ts - origin_naive
-
-    step_ns = np.int64(freq_minutes) * 60 * 1_000_000_000
-    df[time_idx_col] = (delta.dt.total_seconds() * 1_000_000_000).astype("int64") // step_ns
-    return df
 
 
 @hydra.main(version_base=None, config_path="../../configs/tft", config_name="tft_model")
@@ -151,7 +121,13 @@ def main(cfg: DictConfig) -> None:
     )
 
     train_df["location"] = train_df["location"].astype("category")
-    train_df = ensure_time_idx(train_df, ts_col, time_idx_col, origin_utc, freq_minutes=30)
+    train_df = ensure_time_idx_from_origin(
+        train_df,
+        ts_col,
+        time_idx_col,
+        origin_utc,
+        freq_minutes=30
+    )
 
     for c in train_df.columns:
         if c not in (ts_col, "location") and pd.api.types.is_float_dtype(train_df[c]):

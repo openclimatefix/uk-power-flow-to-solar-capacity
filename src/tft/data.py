@@ -7,7 +7,7 @@ import dask.dataframe as dd
 import pandas as pd
 from omegaconf import DictConfig
 
-from src.tft.utils import intersect_features
+from src.tft.utils import ensure_ts_naive, intersect_features
 
 logger = logging.getLogger(__name__)
 
@@ -87,7 +87,7 @@ def create_production_datasets(
 
     if spl and spl.get("strategy") == "by_time":
         ts_col = spl.get("timestamp_col", "timestamp")
-        pdf[ts_col] = pd.to_datetime(pdf[ts_col], utc=True, errors="coerce").dt.tz_localize(None)
+        pdf = ensure_ts_naive(pdf)
 
         train_end = pd.Timestamp(spl["train_end"])
         val_start = pd.Timestamp(spl["val_start"])

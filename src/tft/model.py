@@ -14,7 +14,7 @@ logger = logging.getLogger(__name__)
 class TFTWithGRU(TemporalFusionTransformer):
     def __init__(
         self,
-        **kwargs: DictConfig | str | int | float | bool | torch.Tensor | nn.Module
+        **kwargs: Any
     ) -> None:
         self.head_diversity_lambda = kwargs.pop("head_diversity_lambda", 0.0)
         self.reduce_on_plateau_patience = kwargs.pop("reduce_on_plateau_patience", 2)
@@ -104,7 +104,7 @@ class TFTWithGRU(TemporalFusionTransformer):
         x: dict[str, torch.Tensor],
         y: torch.Tensor,
         batch_idx: int,
-        **kwargs: torch.Tensor | bool | int | str
+        **kwargs: Any
     ) -> torch.Tensor | tuple[torch.Tensor, dict[str, torch.Tensor]]:
         step_out = super().step(x, y, batch_idx, **kwargs)
         base_loss, out = step_out if isinstance(step_out, tuple) else (step_out, {})

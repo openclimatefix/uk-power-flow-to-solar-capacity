@@ -115,6 +115,42 @@ def ensure_sorted_and_time_idx(df: pd.DataFrame, time_idx_col: str) -> pd.DataFr
     return df
 
 
+def ensure_time_idx_from_origin(
+    df: pd.DataFrame,
+    ts_col: str,
+    time_idx_col: str,
+    origin_utc: pd.Timestamp,
+    freq_minutes: int = 30,
+) -> pd.DataFrame:
+    """Compute time_idx as integer steps from a fixed UTC origin timestamp.
+
+    Unlike ensure_sorted_and_time_idx (which uses per-location cumcount),
+    this produces a globally consistent index based on wall-clock time,
+    suitable for fine-tuning where the origin must match the pre-trained model.
+    """
+    if time_idx_col in df.columns:
+        return df
+
+    if ts_col not in df.columns:
+        raise KeyError(f"Timestamp column '{ts_col}' missing from dataframe.")
+
+    ts = df[ts_col]
+
+    if getattr(ts.dtype, "tz", None) is not None:
+        if origin_utc.tzinfo is None:
+            origin_utc = origin_utc.tz_localize("UTC")
+        else:
+            origin_utc = origin_utc.tz_convert("UTC")
+        delta = ts - origin_utc
+    else:
+        origin_naive = origin_utc.tz_convert(None) if origin_utc.tzinfo is not None else origin_utc
+        delta = ts - origin_naive
+
+    step_ns = np.int64(freq_minutes) * 60 * 1_000_000_000
+    df[time_idx_col] = (delta.dt.total_seconds() * 1_000_000_000).astype("int64") // step_ns
+    return df
+
+
 def model_used_features(model: torch.nn.Module) -> set[str]:
     used: set[str] = set()
     dp = getattr(model.hparams, "dataset_parameters", {})
