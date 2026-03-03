@@ -1,11 +1,11 @@
 import logging
-
-from pytorch_forecasting import TimeSeriesDataSet
-from pytorch_forecasting.data.encoders import GroupNormalizer
+from pathlib import Path
 
 import dask.dataframe as dd
 import pandas as pd
-from omegaconf import DictConfig
+from omegaconf import DictConfig, OmegaConf
+from pytorch_forecasting import TimeSeriesDataSet
+from pytorch_forecasting.data.encoders import GroupNormalizer
 
 from src.tft.utils import ensure_ts_naive, intersect_features
 
@@ -26,27 +26,28 @@ def create_production_datasets(
         ignore_metadata_file=True,
     )
 
-    all_locations = ddf["location"].drop_duplicates().compute().astype(str).tolist()
+    tft_cfg_path = Path("configs/tft/tft_model.yaml")
+    try:
+        tft_cfg = OmegaConf.load(tft_cfg_path)
+        loc_cfg = tft_cfg.get("location_filter", {}) or {}
+        mode = loc_cfg.get("mode")
+        logger.info(f"Loaded location_filter from {tft_cfg_path} (mode={mode!r})")
+    except Exception as e:
+        loc_cfg = {}
+        mode = None
+        logger.warning(f"Failed to load {tft_cfg_path}; proceeding with ALL locations. Error: {e}")
 
-    loc_cfg = cfg.get("location_filter", {}) or {}
-    mode = loc_cfg.get("mode")
-
-    if mode == "top_50_clean":
-        locations = [str(x) for x in loc_cfg.get("top_50_clean_locations", [])]
-        if not locations:
-            msg = "location_filter.mode=top_50_clean but top_50_clean_locations is empty"
-            raise ValueError(msg)
-        logger.info(f"Using {len(locations)} fixed clean locations from config")
-    elif num_locations is None:
-        locations = all_locations
-        logger.info("Using ALL locations for production training")
-    else:
-        locations = (
-            pd.Series(all_locations)
-            .sample(n=min(num_locations, len(all_locations)), random_state=42)
-            .tolist()
-        )
-        logger.info(f"Using {len(locations)} randomly sampled locations")
+    all_locations = (
+        ddf["location"]
+        .dropna()
+        .astype("string")
+        .unique()
+        .compute()
+        .astype(str)
+        .tolist()
+    )
+    locations = all_locations
+    logger.info(f"Training on ALL locations ({len(locations)} locations)")
 
     ddf_filtered = ddf[ddf["location"].isin(locations)]
 

@@ -1,4 +1,5 @@
 paths:
+  # Training data derrived from per location MW Power Demand and ERA5 weather data
   dataset_path: PLACEHOLDER.parquet
   results_path: PLACEHOLDER
   log_file: PLACEHOLDER
