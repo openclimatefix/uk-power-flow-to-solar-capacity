@@ -3,7 +3,6 @@ from typing import Any
 
 import torch
 import torch.nn as nn
-
 from pytorch_forecasting import TemporalFusionTransformer, TimeSeriesDataSet
 from pytorch_forecasting.metrics import SMAPE
 
