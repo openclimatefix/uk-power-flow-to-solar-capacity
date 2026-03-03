@@ -50,7 +50,6 @@ class TFTWithGRU(TemporalFusionTransformer):
             batch_first=batch_first,
         )
 
-
     def configure_optimizers(self) -> dict[str, Any]:
         weight_decay = getattr(self.hparams, "weight_decay", 0.0)
         learning_rate = getattr(self.hparams, "learning_rate", 1e-3)

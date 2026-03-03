@@ -15,7 +15,6 @@ import pyarrow.dataset as ds
 from omegaconf import DictConfig
 
 from src.tft.model import TFTWithGRU
-from src.tft.utils import ensure_time_idx_from_origin
 
 logger = logging.getLogger(__name__)
 

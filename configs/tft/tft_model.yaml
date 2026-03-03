@@ -1,18 +1,17 @@
 paths:
-  dataset_path: 'PLACEHOLDER'
-  results_path: 'PLACEHOLDER'
-  log_file: 'PLACEHOLDER'
+  dataset_path: PLACEHOLDER.parquet
+  results_path: PLACEHOLDER
+  log_file: PLACEHOLDER
 
 splits:
   strategy: 'by_time'
   timestamp_col: 'timestamp'
-
-  train_start: 'PLACEHOLDER'
-  train_end:   'PLACEHOLDER'
-  val_start:   'PLACEHOLDER'
-  val_end:     'PLACEHOLDER'
-  test_start:  'PLACEHOLDER'
-  test_end:    'PLACEHOLDER'
+  train_start: '2021-01-01 00:00:00'
+  train_end:   '2023-12-31 23:30:00'
+  val_start:   '2024-01-01 00:00:00'
+  val_end:     '2024-12-31 23:30:00'
+  test_start:  '2025-01-01 00:00:00'
+  test_end:    '2025-06-30 23:30:00'
 
 train_split: null
 val_split: null
@@ -30,8 +29,6 @@ columns_to_drop:
   - 'cleaned_reason'
   - 'transformer_lat'
   - 'transformer_lon'
-
-production_locations: 'PLACEHOLDER'
 
 model:
   static_categoricals: []
@@ -103,11 +100,10 @@ model:
     - 'daily_max_solar_elevation'
     - 'solar_noon_proximity'
     - 'seasonal_solar_strength'
-    # - 'solar_efficiency_ratio'
 
   time_varying_unknown_reals:
-    # - 'active_power_mw_clean_lag_1h'
-    # - 'active_power_mw_clean_lag_2h'
+    
+    # NWP lagged features
     - 't2m_c_lag_2h'
     - 't2m_c_lag_6h'
     - 'wind_speed_lag_2h'
@@ -130,9 +126,9 @@ training:
   max_epochs: 80
   precision: '32-true'
   accelerator: 'gpu'
-  learning_rate: 0.00013903520183858512
-  weight_decay: 1.819239528222674e-06
-  gradient_clip_val: 0.973526835000236
+  learning_rate: 0.000139
+  weight_decay: 1.8192e-06
+  gradient_clip_val: 0.9735
   reduce_on_plateau_patience: 4
   early_stopping_patience: 6
   enable_progress_bar: true
