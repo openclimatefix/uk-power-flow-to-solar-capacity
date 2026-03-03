@@ -121,12 +121,11 @@ def main(cfg: DictConfig) -> None:
     )
 
     train_df["location"] = train_df["location"].astype("category")
-    train_df = ensure_time_idx_from_origin(
-        train_df,
-        ts_col,
-        time_idx_col,
-        origin_utc,
-        freq_minutes=30
+    train_df = train_df.sort_values(["location", ts_col]).reset_index(drop=True)
+    train_df[time_idx_col] = (
+        train_df.groupby("location", sort=False)
+        .cumcount()
+        .astype("int64")
     )
 
     for c in train_df.columns:

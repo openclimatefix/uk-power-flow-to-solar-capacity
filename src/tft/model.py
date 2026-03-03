@@ -28,32 +28,28 @@ class TFTWithGRU(TemporalFusionTransformer):
             }
         )
 
-        try:
-            input_size = self.lstm_encoder.input_size
-            hidden_size = self.lstm_encoder.hidden_size
-            num_layers = self.lstm_encoder.num_layers
-            dropout = self.lstm_encoder.dropout
-            batch_first = self.lstm_encoder.batch_first
+        input_size = self.lstm_encoder.input_size
+        hidden_size = self.lstm_encoder.hidden_size
+        num_layers = self.lstm_encoder.num_layers
+        dropout = self.lstm_encoder.dropout
+        batch_first = self.lstm_encoder.batch_first
 
-            self.lstm_encoder = nn.GRU(
-                input_size=input_size,
-                hidden_size=hidden_size,
-                num_layers=num_layers,
-                dropout=dropout,
-                batch_first=batch_first,
-            )
+        self.lstm_encoder = nn.GRU(
+            input_size=input_size,
+            hidden_size=hidden_size,
+            num_layers=num_layers,
+            dropout=dropout,
+            batch_first=batch_first,
+        )
 
-            self.lstm_decoder = nn.GRU(
-                input_size=input_size,
-                hidden_size=hidden_size,
-                num_layers=num_layers,
-                dropout=dropout,
-                batch_first=batch_first,
-            )
-            logger.info("Successfully replaced LSTMs with GRUs in the TFT architecture.")
-        except AttributeError as e:
-            logger.error(f"Failed to replace LSTMs with GRUs: {e}")
-            raise
+        self.lstm_decoder = nn.GRU(
+            input_size=input_size,
+            hidden_size=hidden_size,
+            num_layers=num_layers,
+            dropout=dropout,
+            batch_first=batch_first,
+        )
+
 
     def configure_optimizers(self) -> dict[str, Any]:
         weight_decay = getattr(self.hparams, "weight_decay", 0.0)
@@ -128,8 +124,6 @@ class TFTWithGRU(TemporalFusionTransformer):
 
 
 def create_final_model(cfg: DictConfig, training_dataset: TimeSeriesDataSet) -> TFTWithGRU:
-    logger.info("Instantiating TFTWithGRU model with Hydra configuration...")
-
     m: TFTWithGRU = TFTWithGRU.from_dataset(
         training_dataset,
         learning_rate=float(cfg.training.learning_rate),
