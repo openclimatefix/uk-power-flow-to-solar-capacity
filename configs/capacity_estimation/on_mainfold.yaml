@@ -1,0 +1,28 @@
+solar_weights:
+  ssrd_w_m2: 1.0
+  ssr_w_m2: 1.0
+  ghi: 1.0
+  dni: 1.0
+  dhi: 0.5
+  cs_ghi: 0.5
+  solar_intensity_factor: 1.0
+  tcc: -1.0
+  cloud_cover: -1.0
+  solar_zenith_angle: -0.5
+  ssrd_w_m2_lag_2h: 0.25
+  ssrd_w_m2_lag_6h: 0.25
+
+solar_scoring:
+  pool_percentiles:
+    low: 20
+    high: 80
+
+daylight:
+  hours: [6, 19]
+
+orientation_inference:
+  primary_solar_features: ["ssrd_w_m2", "ghi", "dni"]
+  summer_months: [5, 9]
+  midday_hours: [11, 14]
+  min_samples: 20
+  fallback_orientation: 1
