@@ -28,7 +28,7 @@ class _CondVAE(nn.Module):
         hidden: int = 128,
         emb_loc: int = 16,
         emb_month: int = 4,
-        emb_hour: int = 4
+        emb_hour: int = 4,
     ) -> None:
         super().__init__()
         self.z_dim = z_dim
@@ -56,10 +56,10 @@ class _CondVAE(nn.Module):
         )
 
     def _cond(self, loc: torch.Tensor, mo: torch.Tensor, hr: torch.Tensor) -> torch.Tensor:
-        """Concats embeddings into a single conditioning vector."""
+        """Concatenate embeddings into a single conditioning vector."""
         return torch.cat(
             [self.loc_emb(loc), self.month_emb(mo), self.hour_emb(hr)],
-            dim=-1
+            dim=-1,
         )
 
     def forward(
@@ -67,13 +67,14 @@ class _CondVAE(nn.Module):
         x: torch.Tensor,
         loc: torch.Tensor,
         mo: torch.Tensor,
-        hr: torch.Tensor
+        hr: torch.Tensor,
     ) -> tuple[torch.Tensor, torch.Tensor, torch.Tensor]:
         """Forward pass through the cVAE."""
         h = self.encoder(torch.cat([x, self._cond(loc, mo, hr)], dim=-1))
         mu, logvar = self.mu(h), self.logvar(h)
 
-        # Reparametersation trick
+        # Reparameterisation trick: z = mu + sigma * epsilon, epsilon ~ N(0, I)
+        # Allows gradients to flow through the stochastic sampling step
         std = torch.exp(0.5 * logvar)
         z = mu + std * torch.randn_like(std)
 
@@ -86,10 +87,12 @@ class _CondVAE(nn.Module):
         x_hat: torch.Tensor,
         mu: torch.Tensor,
         logvar: torch.Tensor,
-        beta: float = 1.0
+        beta: float = 1.0,
     ) -> torch.Tensor:
         """ELBO loss combining reconstruction (MSE) and KL divergence."""
+        # Reconstruction term: penalises deviation from input features
         recon = nn.functional.mse_loss(x_hat, x, reduction="mean")
+        # KL term: regularises latent space toward unit Gaussian prior N(0, I)
         kld = -0.5 * torch.mean(1 + logvar - mu.pow(2) - logvar.exp())
         return recon + beta * kld
 
@@ -106,7 +109,7 @@ class OnManifoldSampler:
         max_rows: int = 1_000_000,
         epochs: int = 8,
         batch_size: int = 2048,
-        lr: float = 2e-3
+        lr: float = 2e-3,
     ) -> None:
         self.parquet_path = Path(parquet_path)
         self.features = list(feature_list)
@@ -125,13 +128,13 @@ class OnManifoldSampler:
         self.minmax: dict[str, tuple[float, float]] = {}
 
     def _get_paths(self) -> tuple[Path, Path]:
-        """Generates deterministic paths for model artifacts."""
+        """Generate deterministic paths for model artifacts."""
         tag = "_".join(sorted(self.features))
         h = hash(tag) & 0xfffffff
         return self.save_dir / f"cvae_{h}.pt", self.save_dir / f"scaler_{h}.json"
 
     def _prepare_data(self) -> tuple[np.ndarray, np.ndarray, np.ndarray, np.ndarray]:
-        """Loads and normalises feature data for training."""
+        """Load and normalise feature data for training."""
         logger.info("Loading sampler data from %s", self.parquet_path)
         cols = ["location", "month", "hour", *self.features]
         df = pd.read_parquet(self.parquet_path, columns=cols).dropna()
@@ -142,6 +145,8 @@ class OnManifoldSampler:
 
         x_raw = df[self.features].astype(float).to_numpy()
         self.scaler = StandardScaler().fit(x_raw)
+
+        # Record empirical bounds per feature for post-generation clipping in sample_vectors
         self.minmax = {
             f: (float(x_raw[:, i].min()), float(x_raw[:, i].max()))
             for i, f in enumerate(self.features)
@@ -160,7 +165,7 @@ class OnManifoldSampler:
         return x_scaled, loc_ids, months, hours
 
     def train_or_load(self) -> None:
-        """Loads a checkpoint or trains a new cVAE manifold model."""
+        """Load a checkpoint or train a new cVAE manifold model."""
         m_path, s_path = self._get_paths()
 
         if m_path.exists() and s_path.exists():
@@ -193,13 +198,15 @@ class OnManifoldSampler:
             torch.from_numpy(xs.astype(np.float32)),
             torch.from_numpy(locs.astype(np.int64)),
             torch.from_numpy(months.astype(np.int64)),
-            torch.from_numpy(hours.astype(np.int64))
+            torch.from_numpy(hours.astype(np.int64)),
         )
         dl = DataLoader(ds, batch_size=self.batch_size, shuffle=True)
 
+        # Adam with default betas; lr tuned for fast convergence on weather distributions
         optimizer = torch.optim.Adam(self.model.parameters(), lr=self.lr)
         self.model.train()
 
+        # Standard ELBO optimisation — minimise reconstruction + KL simultaneously
         for ep in range(1, self.epochs + 1):
             total_loss = 0.0
             for xb, lb, mb, hb in dl:
@@ -214,12 +221,13 @@ class OnManifoldSampler:
 
             logger.info("Epoch %d/%d - Loss: %.6f", ep, self.epochs, total_loss / len(ds))
 
+        # Persist weights and scaler separately so scaler can be inspected without loading torch
         torch.save(self.model.state_dict(), m_path)
         with open(s_path, "w") as f:
             json.dump({
                 "m": self.scaler.mean_.tolist(),
                 "s": self.scaler.scale_.tolist(),
-                "mm": self.minmax
+                "mm": self.minmax,
             }, f)
 
         self.model.eval()
@@ -230,22 +238,24 @@ class OnManifoldSampler:
         location: str,
         month: int,
         hour: int,
-        k: int
+        k: int,
     ) -> list[dict[str, float]]:
-        """Generates weather samples constrained to the learned manifold."""
+        """Generate weather samples constrained to the learned manifold."""
         loc_id = self.loc2id.get(str(location), 0)
         loc = torch.full((k,), loc_id, dtype=torch.long, device=self.device)
         mo = torch.full((k,), int(month), dtype=torch.long, device=self.device).clamp(1, 12)
         hr = torch.full((k,), int(hour), dtype=torch.long, device=self.device).clamp(0, 23)
 
-        # Sample from latent prior
+        # Sample from latent prior z ~ N(0, I) and decode through conditioned generator
         z = torch.randn(k, self.model.z_dim, device=self.device)
         xs_scaled = self.model.decoder(
             torch.cat([z, self.model._cond(loc, mo, hr)], dim=-1)
         ).cpu().numpy()
 
+        # Invert standardisation to recover physical feature magnitudes
         x_inv = self.scaler.inverse_transform(xs_scaled)
 
+        # Clip to empirical training bounds to prevent physically implausible extrapolation
         samples = []
         for i in range(k):
             vec = {}
