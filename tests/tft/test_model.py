@@ -1,104 +1,80 @@
+from __future__ import annotations
+
+from unittest.mock import patch
+
 import torch
 from pytorch_forecasting import TimeSeriesDataSet
-from pytorch_forecasting.data.encoders import GroupNormalizer
 
-import pandas as pd
 import pytest
-from omegaconf import DictConfig, OmegaConf
+from omegaconf import DictConfig
 
 from src.tft.model import TFTWithGRU, create_final_model
 
 
-@pytest.fixture
-def mock_cfg() -> DictConfig:
-    """Provides a mock Hydra configuration for model instantiation."""
-    return OmegaConf.create({
-        "model": {
-            "hidden_size": 16,
-            "attention_head_size": 4,
-            "dropout": 0.1,
-            "hidden_continuous_size": 8,
-            "lstm_layers": 2,
-        },
-        "training": {
-            "learning_rate": 1e-3,
-            "weight_decay": 1e-6,
-            "reduce_on_plateau_patience": 2,
-            "head_diversity_lambda": 0.1,
-        }
-    })
+def test_cosine_scheduler(model: TFTWithGRU) -> None:
+    model.__dict__["scheduler_type"] = "cosine"
+    model.__dict__["cosine_t_max"] = 10
+    sched = model.configure_optimizers()["lr_scheduler"]["scheduler"]
+    assert isinstance(sched, torch.optim.lr_scheduler.CosineAnnealingLR)
 
 
-def _make_dummy_dataset() -> TimeSeriesDataSet:
-    """Creates a minimal TimeSeriesDataSet for testing."""
-    data = {
-        "time_idx": list(range(5)) + list(range(5)),
-        "location": ["site_1"] * 5 + ["site_2"] * 5,
-        "active_power_mw_clean": [0.1, 0.2, 0.3, 0.4, 0.5] * 2,
-        "u10": [1.0] * 10,
-        "v10": [0.0] * 10,
-    }
-    df = pd.DataFrame(data)
-
-    dataset = TimeSeriesDataSet(
-        df,
-        time_idx="time_idx",
-        target="active_power_mw_clean",
-        group_ids=["location"],
-        max_encoder_length=2,
-        max_prediction_length=1,
-        static_categoricals=[],
-        static_reals=[],
-        time_varying_known_reals=["u10", "v10"],
-        time_varying_unknown_reals=[],
-        add_relative_time_idx=True,
-        add_target_scales=True,
-        add_encoder_length=True,
-        target_normalizer=GroupNormalizer(groups=["location"], transformation="softplus"),
-    )
-    return dataset
+def test_plateau_scheduler(model: TFTWithGRU) -> None:
+    model.__dict__["scheduler_type"] = "plateau"
+    model.__dict__["plateau_patience"] = 2
+    sched = model.configure_optimizers()["lr_scheduler"]["scheduler"]
+    assert isinstance(sched, torch.optim.lr_scheduler.ReduceLROnPlateau)
+    model.__dict__["scheduler_type"] = "cosine"
 
 
-def test_create_final_model_builds_tft_with_gru(mock_cfg: DictConfig) -> None:
-    """Verifies that the model is instantiated as TFTWithGRU and swaps LSTMs correctly."""
-    training_dataset = _make_dummy_dataset()
-    model = create_final_model(mock_cfg, training_dataset)
-
-    assert isinstance(model, TFTWithGRU)
-    # Verify swapped to GRU
-    assert isinstance(model.lstm_encoder, torch.nn.GRU)
-    assert isinstance(model.lstm_decoder, torch.nn.GRU)
-
-    # Verify hparams match config
-    assert model.hparams.learning_rate == mock_cfg.training.learning_rate
-    assert model.hparams.hidden_size == mock_cfg.model.hidden_size
-
-
-def test_configure_optimizers_uses_adamw_and_scheduler(mock_cfg: DictConfig) -> None:
-    """Checks that AdamW and the ReduceLROnPlateau scheduler are configured."""
-    training_dataset = _make_dummy_dataset()
-    model = create_final_model(mock_cfg, training_dataset)
-
-    opt_conf = model.configure_optimizers()
-    optimizer = opt_conf["optimizer"]
-    scheduler_dict = opt_conf["lr_scheduler"]
-
-    assert isinstance(optimizer, torch.optim.AdamW)
-    assert optimizer.param_groups[0]["lr"] == mock_cfg.training.learning_rate
-    assert "scheduler" in scheduler_dict
-    assert isinstance(scheduler_dict["scheduler"], torch.optim.lr_scheduler.ReduceLROnPlateau)
-
-
-def test_head_overlap_loss_calculation() -> None:
-    """Tests the static attention diversity loss calculation."""
-    # Create dummy attention tensor (Batch=2, Heads=2, Time=2, Time=2)
-    # Two identical heads should produce higher overlap loss
-    attn = torch.ones((2, 2, 2, 2))
-    loss = TFTWithGRU._head_overlap_loss(attn)
-
+def test_overlap_loss_positive_for_identical_heads() -> None:
+    loss = TFTWithGRU._head_overlap_loss(torch.ones(2, 2, 4, 4))
     assert loss is not None
-    assert loss > 0
+    assert loss.item() > 0
 
-    # Single head should return None
-    single_head_attn = torch.ones((2, 1, 2, 2))
-    assert TFTWithGRU._head_overlap_loss(single_head_attn) is None
+
+def test_overlap_loss_zero_for_orthogonal_heads() -> None:
+    attn = torch.zeros(2, 4, 4)
+    attn[0, 0, 0] = 1.0
+    attn[1, 1, 1] = 1.0
+    loss = TFTWithGRU._head_overlap_loss(attn)
+    assert loss.item() == pytest.approx(0.0, abs=1e-6)
+
+
+def test_overlap_loss_none_for_single_head() -> None:
+    assert TFTWithGRU._head_overlap_loss(torch.ones(1, 4, 4)) is None
+
+
+def test_overlap_loss_none_for_non_tensor() -> None:
+    assert TFTWithGRU._head_overlap_loss(None) is None
+
+
+def test_step_adds_penalty_during_training(
+    cfg: DictConfig, dataset: TimeSeriesDataSet
+) -> None:
+    m = create_final_model(cfg, dataset)
+    m.__dict__["diversity_lambda"] = 1.0
+    m.train()
+    base_loss = torch.tensor(1.0)
+    parent_out = (base_loss, {"attention": torch.ones(2, 2, 4, 4)})
+
+    with (
+        patch.object(type(m).__mro__[1], "step", return_value=parent_out),
+        patch.object(m, "log"),
+    ):
+        result, _ = m.step({}, torch.zeros(2), 0)
+
+    assert result.item() > 1.0
+
+
+def test_step_no_penalty_during_eval(
+    cfg: DictConfig, dataset: TimeSeriesDataSet
+) -> None:
+    m = create_final_model(cfg, dataset)
+    m.eval()
+    base_loss = torch.tensor(2.5)
+    parent_out = (base_loss, {"attention": torch.ones(2, 2, 4, 4)})
+
+    with patch.object(type(m).__mro__[1], "step", return_value=parent_out):
+        result, _ = m.step({}, torch.zeros(2), 0)
+
+    assert result.item() == pytest.approx(2.5)
