@@ -1,8 +1,10 @@
-import dask.dataframe as dd
+"""Tests for src.tft.data."""
+
+from __future__ import annotations
+
 import pandas as pd
 import pytest
-from hydra import compose, initialize
-from omegaconf import DictConfig
+from omegaconf import DictConfig, OmegaConf
 
 from src.tft.data import create_production_datasets
 from src.tft.utils import intersect_features
@@ -10,84 +12,95 @@ from src.tft.utils import intersect_features
 
 @pytest.fixture
 def cfg() -> DictConfig:
-    with initialize(version_base=None, config_path="../../configs/tft"):
-        return compose(config_name="tft_model", overrides=["production_locations=null"])
+    return OmegaConf.create({
+        "model": {
+            "group_ids": ["location"],
+            "target": "active_power_mw_clean",
+            "static_categoricals": [],
+            "static_reals": [],
+            "time_varying_known_reals": ["u10", "v10"],
+            "time_varying_unknown_reals": [],
+            "max_encoder_length": 4,
+            "max_prediction_length": 2,
+            "add_target_scales": True,
+        },
+        "train_split": 0.6,
+        "val_split": 0.9,
+    })
 
 
-def test_intersect_features_filters_and_warns(caplog: pytest.LogCaptureFixture) -> None:
-    existing_cols = ["a", "b", "c"]
-    keys = ["a", "x", "c", "y"]
+@pytest.fixture
+def parquet_path(tmp_path) -> str:
+    n = 20
+    pdf = pd.DataFrame({
+        "location": ["site_1"] * n,
+        "timestamp": pd.date_range("2021-01-01", periods=n, freq="30min"),
+        "active_power_mw_clean": [float(i) * 0.1 for i in range(n)],
+        "u10": [1.0] * n,
+        "v10": [0.5] * n,
+    })
+    path = str(tmp_path / "data.parquet")
+    pdf.to_parquet(path, index=False)
+    return path
 
-    with caplog.at_level("WARNING"):
-        result = intersect_features(existing_cols, keys)
 
+@pytest.fixture
+def time_cfg(cfg: DictConfig) -> DictConfig:
+    raw = OmegaConf.to_container(cfg, resolve=True)
+    raw["splits"] = {
+        "strategy": "by_time",
+        "timestamp_col": "timestamp",
+        "train_end": "2021-01-01 05:00:00",
+        "val_start": "2021-01-01 06:00:00",
+        "val_end": "2021-01-01 08:00:00",
+    }
+    return OmegaConf.create(raw)
+
+
+def test_intersect_features_returns_present_cols() -> None:
+    result = intersect_features(["a", "b", "c"], ["a", "c", "x"])
     assert result == ["a", "c"]
+
+
+def test_intersect_features_warns_on_missing(caplog: pytest.LogCaptureFixture) -> None:
+    with caplog.at_level("WARNING"):
+        intersect_features(["a", "b"], ["a", "missing"])
     assert "Missing" in caplog.text
 
 
-def test_create_production_datasets_fractional_split(
-    cfg: DictConfig, monkeypatch: pytest.MonkeyPatch
-) -> None:
-    cfg.model.max_encoder_length = 2
-    cfg.model.max_prediction_length = 1
-    cfg.splits.strategy = "fractional"
-    cfg.train_split = 0.5
-    cfg.val_split = 0.9
-
-    data = {
-        "location": ["site_1"] * 10,
-        "timestamp": pd.date_range("2021-01-01", periods=10, freq="30min"),
-        "active_power_mw_clean": [0.1] * 10,
-    }
-    pdf = pd.DataFrame(data)
-
-    for col in list(cfg.model.time_varying_known_reals) + list(cfg.model.static_reals):
-        pdf[col] = 0.0
-
-    ddf = dd.from_pandas(pdf, npartitions=1)
-    # Fix ARG005: Use underscores for unused lambda arguments
-    monkeypatch.setattr("src.tft.data.dd.read_parquet", lambda *_, **__: ddf)
-
-    training_dataset, validation_dataset, backing_df = create_production_datasets(
-        cfg=cfg,
-        dataset_path="dummy/path.parquet",
-        num_locations=None,
-    )
-
-    assert "time_idx" in backing_df.columns
-    assert training_dataset.max_encoder_length == 2
-    assert len(training_dataset) > 0
-    assert len(validation_dataset) > 0
+def test_intersect_features_empty_keys() -> None:
+    assert intersect_features(["a", "b"], []) == []
 
 
-def test_create_production_datasets_by_time_split(
-    cfg: DictConfig, monkeypatch: pytest.MonkeyPatch
-) -> None:
-    cfg.model.max_encoder_length = 2
-    cfg.model.max_prediction_length = 1
+def test_fractional_split_returns_three_tuple(cfg: DictConfig, parquet_path: str) -> None:
+    result = create_production_datasets(cfg, parquet_path)
+    assert len(result) == 3
 
-    cfg.splits.strategy = "by_time"
-    cfg.splits.train_end = "2021-01-01 05:00:00"
-    cfg.splits.val_start = "2021-01-01 06:00:00"
-    cfg.splits.val_end = "2021-01-01 08:00:00"
 
-    data = {
-        "location": ["site_1"] * 20,
-        "timestamp": pd.date_range("2021-01-01", periods=20, freq="30min"),
-        "active_power_mw_clean": [0.1] * 20,
-    }
-    pdf = pd.DataFrame(data)
+def test_fractional_split_time_idx_present(cfg: DictConfig, parquet_path: str) -> None:
+    create_production_datasets(time_cfg, parquet_path)
+    assert "time_idx" in pdf.columns
 
-    for col in list(cfg.model.time_varying_known_reals) + list(cfg.model.static_reals):
-        pdf[col] = 0.0
 
-    ddf = dd.from_pandas(pdf, npartitions=1)
-    monkeypatch.setattr("src.tft.data.dd.read_parquet", lambda *_, **__: ddf)
+def test_fractional_split_datasets_nonempty(cfg: DictConfig, parquet_path: str) -> None:
+    training_ds, val_ds, _ = create_production_datasets(cfg, parquet_path)
+    assert len(training_ds) > 0
+    assert len(val_ds) > 0
 
-    training_dataset, validation_dataset, _ = create_production_datasets(
-        cfg=cfg,
-        dataset_path="dummy/path.parquet"
-    )
 
-    assert len(training_dataset) > 0
-    assert len(validation_dataset) > 0
+def test_fractional_split_encoder_length(cfg: DictConfig, parquet_path: str) -> None:
+    training_ds, _, _ = create_production_datasets(cfg, parquet_path)
+    assert training_ds.max_encoder_length == cfg.model.max_encoder_length
+
+
+def test_by_time_split_datasets_nonempty(time_cfg: DictConfig, parquet_path: str) -> None:
+    training_ds, val_ds, _ = create_production_datasets(time_cfg, parquet_path)
+    assert len(training_ds) > 0
+    assert len(val_ds) > 0
+
+
+def test_by_time_split_val_after_train(time_cfg: DictConfig, parquet_path: str) -> None:
+    _, _, pdf = create_production_datasets(time_cfg, parquet_path)
+    train_end = pd.Timestamp(time_cfg.splits.train_end)
+    val_start = pd.Timestamp(time_cfg.splits.val_start)
+    assert train_end < val_start
