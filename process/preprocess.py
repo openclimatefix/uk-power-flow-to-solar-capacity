@@ -4,7 +4,7 @@ import warnings
 from collections import defaultdict
 from datetime import datetime
 
-import geopandas as gpd
+import geopandas
 import pandas as pd
 
 from .utils import (
@@ -425,10 +425,10 @@ def create_location_aggregated_dataset(
     logger.info("Aggregated dataset created at %s with %d rows", output_file, total_rows_output)
 
 
-def inspect_geojson_file(filepath: str | None = None) -> gpd.GeoDataFrame:
+def inspect_geojson_file(filepath: str | None = None) -> geopandas.GeoDataFrame:
     if filepath is None:
         filepath = GEOJSON
-    gdf = gpd.read_file(filepath)
+    gdf = geopandas.read_file(filepath)
     logger.info("GeoJSON loaded with %d features", len(gdf))
     return gdf
 
@@ -447,7 +447,7 @@ def load_agg_data(filepath: str | None = None) -> pd.DataFrame:
 def load_geojson_data(filepath: str | None = None) -> pd.DataFrame:
     if filepath is None:
         filepath = GEOJSON
-    gdf = gpd.read_file(filepath)
+    gdf = geopandas.read_file(filepath)
 
     candidate_name_cols = list(MATCHING.geojson_candidate_name_cols)
     name_col = None

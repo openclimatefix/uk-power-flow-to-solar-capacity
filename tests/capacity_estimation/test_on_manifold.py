@@ -159,8 +159,8 @@ def test_apply_daylight_constants_modifies_within_hours(cfg) -> None:
     out = apply_daylight_constants(df, {"ssrd_w_m2": 500.0}, cfg)
     daylight = out[out["timestamp"].dt.hour.between(6, 19)]
     night = out[~out["timestamp"].dt.hour.between(6, 19)]
-    assert (daylight["ssrd_w_m2"] == 500.0).all()
-    assert (night["ssrd_w_m2"] == 0.0).all()
+    assert daylight["ssrd_w_m2"].to_numpy() == pytest.approx(500.0)
+    assert night["ssrd_w_m2"].to_numpy() == pytest.approx(0.0)
 
 
 def test_apply_daylight_constants_updates_sibling_features(cfg) -> None:
@@ -172,8 +172,8 @@ def test_apply_daylight_constants_updates_sibling_features(cfg) -> None:
         "ssrd_w_m2_roll_6h": 0.0,
     })
     out = apply_daylight_constants(df, {"ssrd_w_m2": 300.0}, cfg)
-    assert (out["ssrd_w_m2_lag_2h"] == 300.0).all()
-    assert (out["ssrd_w_m2_roll_6h"] == 300.0).all()
+    assert out["ssrd_w_m2_lag_2h"].to_numpy() == pytest.approx(300.0)
+    assert out["ssrd_w_m2_roll_6h"].to_numpy() == pytest.approx(300.0)
 
 
 def test_apply_daylight_constants_noop_empty_mods(cfg) -> None:
