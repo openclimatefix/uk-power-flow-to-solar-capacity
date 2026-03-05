@@ -10,10 +10,6 @@ from omegaconf import DictConfig
 
 logger = logging.getLogger(__name__)
 
-# Cache for configurations to avoid redundant I/O
-_SOLAR_CFG_CACHE: DictConfig | None = None
-_TFT_CFG_CACHE: DictConfig | None = None
-
 
 def solar_score(
     vec: dict[str, float],
