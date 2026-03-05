@@ -78,7 +78,7 @@ def test_fractional_split_returns_three_tuple(cfg: DictConfig, parquet_path: str
 
 
 def test_fractional_split_time_idx_present(cfg: DictConfig, parquet_path: str) -> None:
-    create_production_datasets(time_cfg, parquet_path)
+    _, _, pdf = create_production_datasets(cfg, parquet_path)
     assert "time_idx" in pdf.columns
 
 
@@ -100,7 +100,7 @@ def test_by_time_split_datasets_nonempty(time_cfg: DictConfig, parquet_path: str
 
 
 def test_by_time_split_val_after_train(time_cfg: DictConfig, parquet_path: str) -> None:
-    _, _, pdf = create_production_datasets(time_cfg, parquet_path)
+    create_production_datasets(time_cfg, parquet_path)
     train_end = pd.Timestamp(time_cfg.splits.train_end)
     val_start = pd.Timestamp(time_cfg.splits.val_start)
     assert train_end < val_start
