@@ -1,3 +1,7 @@
+"""Utility functions for data loading, preprocessing, and merging."""
+
+from __future__ import annotations
+
 import glob
 import logging
 import os
@@ -33,15 +37,15 @@ def get_path(cfg: DictConfig, key: str) -> str:
     return str(cfg.paths[key])
 
 
-def get_processing_param(cfg: DictConfig, key: str):
+def get_processing_param(cfg: DictConfig, key: str) -> object:
     return cfg.processing[key]
 
 
-def get_matching_param(cfg: DictConfig, key: str):
+def get_matching_param(cfg: DictConfig, key: str) -> object:
     return cfg.matching[key]
 
 
-def get_plot_param(cfg: DictConfig, key: str, plot_name: str = "ten_locations"):
+def get_plot_param(cfg: DictConfig, key: str, plot_name: str = "ten_locations") -> object:
     return cfg.plots[plot_name][key]
 
 
@@ -49,19 +53,19 @@ def get_mm_path(cfg: DictConfig, key: str) -> str:
     return str(cfg.paths[key])
 
 
-def get_weather_param(cfg: DictConfig, key: str):
+def get_weather_param(cfg: DictConfig, key: str) -> object:
     return cfg.weather[key]
 
 
-def get_mapping_param(cfg: DictConfig, key: str):
+def get_mapping_param(cfg: DictConfig, key: str) -> object:
     return cfg.mapping[key]
 
 
-def get_power_param(cfg: DictConfig, key: str):
+def get_power_param(cfg: DictConfig, key: str) -> object:
     return cfg.power[key]
 
 
-def get_merge_param(cfg: DictConfig, key: str):
+def get_merge_param(cfg: DictConfig, key: str) -> object:
     return cfg.merge[key]
 
 

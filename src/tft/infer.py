@@ -6,19 +6,19 @@ import gc
 import logging
 from pathlib import Path
 
+import torch
+from pytorch_forecasting import TimeSeriesDataSet
+
 import hydra
 import numpy as np
 import pandas as pd
 import pyarrow as pa
 import pyarrow.dataset as ads
 import pyarrow.parquet as pq
-import torch
 from omegaconf import DictConfig
-from pytorch_forecasting import TimeSeriesDataSet
 
 from src.tft.model import TFTWithGRU
-from src.tft.utils import get_device
-from src.tft.utils import parse_predict_output
+from src.tft.utils import get_device, parse_predict_output
 
 logger = logging.getLogger(__name__)
 
@@ -165,8 +165,8 @@ def run_predict_one_chunk(
     )
 
     n_samples = preds.shape[0]
-    locs = index[group_col].astype(str).values
-    t0s = index[time_idx_col].values.astype(int)
+    locs = index[group_col].astype(str).to_numpy()
+    t0s = index[time_idx_col].to_numpy().astype(int)
 
     locs_rep = np.repeat(locs, h_len)
     t0s_rep = np.repeat(t0s, h_len)
@@ -175,7 +175,7 @@ def run_predict_one_chunk(
 
     timestamps = [
         key_map.get((loc, int(tidx)))
-        for loc, tidx in zip(locs_rep, tidxs)
+        for loc, tidx in zip(locs_rep, tidxs, strict=True)
     ]
 
     pred_df = pd.DataFrame({

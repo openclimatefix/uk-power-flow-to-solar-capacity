@@ -139,7 +139,10 @@ def parse_predict_output(result: object) -> tuple[torch.Tensor | None, pd.DataFr
         return preds_tensor, index_df
 
     if isinstance(result, dict):
-        return result.get("prediction") or result.get("predictions"), result.get("index")
+        preds = result.get("prediction")
+        if preds is None:
+            preds = result.get("predictions")
+        return preds, result.get("index")
 
     raise RuntimeError(f"Unsupported predict output type: {type(result)}")
 
