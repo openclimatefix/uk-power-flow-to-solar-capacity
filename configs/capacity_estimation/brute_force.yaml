@@ -1,0 +1,32 @@
+paths:
+  dataset_path: data/pv_dataset.parquet
+  inference_ckpt: production_tft_model.ckpt
+
+output_dir: scenario_outputs_bruteforce
+
+batch_size: 32
+sites_per_chunk: 50
+
+model:
+  target: power_mw
+  group_ids: ["location"]
+  time_idx: time_idx
+
+scenario_features:
+  - ssrd_w_m2
+  - ghi
+  - dni
+  - dhi
+  - cs_ghi
+  - tcc
+  - cloud_cover
+  - solar_zenith_angle
+  - solar_elevation_angle
+
+quantiles:
+  high: 0.9
+  low: 0.1
+
+push:
+  high: 1.1
+  low: 0.9
