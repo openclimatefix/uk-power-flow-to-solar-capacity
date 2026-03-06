@@ -1,0 +1,41 @@
+paths:
+  data: /home/felix/output/processed_data_cleaned_with_static_no_lag_nans.parquet
+  output_csv: /home/felix/output/solar_capacity_yoy_growth.csv
+  checkpoint: logs/tft_tb/version_25/checkpoints/tft-09-0.0452.ckpt
+
+years_to_analyze: [2022, 2023, 2024, 2025]
+sites_per_gc: 10
+min_samples_per_site: 1000
+min_windows_for_estimate: 15
+step_size: 336
+peak_hours: [11, 15]
+analogue_fallback_years: [2021, 2022]
+analogue_percentile_high: 95
+analogue_percentile_low: 5
+
+features:
+  - temp_x_hour_cos
+  - month_sin
+  - hour_cos
+  - ssrd_w_m2_lag_2h
+  - sunrise_sunset_proximity
+  - sshf_w_m2
+  - slhf_w_m2
+  - is_civil_twilight
+  - year
+  - cloud_variability
+  - tp_mm
+  - hour_sin
+  - weather_index_cos
+  - dayofweek_cos
+  - u10
+  - ssrd_w_m2_lag_6h
+  - wind_dir_sin
+  - ishf_w_m2
+  - solar_noon_proximity
+  - weather_quality_score
+  - t2m_c_lag_2h
+  - is_weekend
+  - dayofyear
+  - d2m_c
+  - ssrd_w_m2
