@@ -139,6 +139,9 @@ training:
   head_diversity_lambda: 0.01
   head_diversity_warmup_epochs: 2
 
+  mlflow_tracking_uri: null
+  mlflow_experiment: "tft"
+
 logging:
   level: 'INFO'
   format: '%(asctime)s - %(name)s - %(levelname)s - %(message)s'

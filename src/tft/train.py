@@ -83,10 +83,23 @@ def build_loggers(training_cfg: DictConfig) -> list:
             )
         ]
 
-    return [
+    loggers = [
         TensorBoardLogger(save_dir="logs", name="tft_tb"),
         CSVLogger(save_dir="logs", name="tft_csv"),
     ]
+
+    if training_cfg.get("mlflow_tracking_uri"):
+        from lightning.pytorch.loggers import MLFlowLogger
+
+        loggers.append(
+            MLFlowLogger(
+                experiment_name=training_cfg.get("mlflow_experiment", "tft"),
+                tracking_uri=str(training_cfg.mlflow_tracking_uri),
+                log_model=True,
+            )
+        )
+
+    return loggers
 
 
 def train_final_model(
