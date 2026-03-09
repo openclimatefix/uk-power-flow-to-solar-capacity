@@ -1,7 +1,7 @@
 paths:
-  data: /home/felix/output/processed_data_cleaned_with_static_no_lag_nans.parquet
-  output_csv: /home/felix/output/solar_capacity_yoy_growth.csv
-  checkpoint: logs/tft_tb/version_25/checkpoints/tft-09-0.0452.ckpt
+  dataset_path: PLACEHOLDER.parquet
+  results_path: PLACEHOLDER_RESULTS_DIR/PLACEHOLDER.csv
+  inference_ckpt: PLACEHOLDER.ckpt
 
 years_to_analyze: [2022, 2023, 2024, 2025]
 sites_per_gc: 10

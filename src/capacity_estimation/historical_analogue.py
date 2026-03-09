@@ -179,12 +179,12 @@ def main(cfg: DictConfig) -> None:
     Args:
         cfg: Hydra config injected automatically.
     """
-    logger.info("Loading model from %s", cfg.paths.checkpoint)
-    model = TemporalFusionTransformer.load_from_checkpoint(cfg.paths.checkpoint)
+    logger.info("Loading model from %s", cfg.paths.inference_ckpt)
+    model = TemporalFusionTransformer.load_from_checkpoint(cfg.paths.inference_ckpt)
     trained_sites = list(model.dataset_parameters["categorical_encoders"]["location"].classes_)
 
-    logger.info("Loading data from %s", cfg.paths.data)
-    df = pd.read_parquet(cfg.paths.data, filters=[("location", "in", trained_sites)])
+    logger.info("Loading data from %s", cfg.paths.dataset_path)
+    df = pd.read_parquet(cfg.paths.dataset_path, filters=[("location", "in", trained_sites)])
     df = ensure_time_idx(df)
 
     actual_features = [f for f in cfg.features if f in df.columns]
@@ -241,8 +241,8 @@ def main(cfg: DictConfig) -> None:
             torch.cuda.empty_cache()
 
     df_results = pd.DataFrame(results)
-    df_results.to_csv(cfg.paths.output_csv, index=False)
-    logger.info("Results saved to %s", cfg.paths.output_csv)
+    df_results.to_csv(cfg.paths.results_path, index=False)
+    logger.info("Results saved to %s", cfg.paths.results_path)
 
     # Fleet-wide summary
     for j in range(len(years) - 1):

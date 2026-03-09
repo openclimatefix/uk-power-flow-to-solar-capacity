@@ -3,6 +3,9 @@ paths:
   dataset_path: PLACEHOLDER.parquet
   results_path: PLACEHOLDER_RESULTS_DIR
   log_file: PLACEHOLDER.log
+  finetune_ckpt: PLACEHOLDER.ckpt
+  inference_ckpt: PLACEHOLDER.ckpt
+  output_path: PLACEHOLDER_PREDICTIONS.parquet
 
 splits:
   strategy: 'by_time'
