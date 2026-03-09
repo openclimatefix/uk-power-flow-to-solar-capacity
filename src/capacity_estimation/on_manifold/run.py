@@ -1,15 +1,5 @@
-"""
-On-manifold scenario simulation using TFT.
-Execution script / module.
+"""On-manifold counterfactual scenario simulation for TFT capacity estimation."""
 
-Counterfactual Impact Analysis utilising a Conditional
-Generative Model to estimate capacity of PV assets.
-
-Main steps briefly:
-1. Linear Calibration: Correcting model bias via y_cal = a * y_pred + b.
-2. Manifold Sampling: Using a cVAE to draw physically plausible weather states.
-3. Differential Quantification: Measuring delta between polar solar scenarios.
-"""
 from __future__ import annotations
 
 import gc
@@ -33,11 +23,7 @@ from src.tft.utils import (
     model_used_features,
 )
 
-from .data_utils import (
-    apply_daylight_constants,
-    infer_orientation,
-    pool_min_max,
-)
+from .data_utils import apply_daylight_constants, infer_orientation, pool_min_max
 from .model_utils import predict_timeseries
 from .sampler import OnManifoldSampler
 
@@ -53,7 +39,6 @@ def load_calibration_slice(cfg: DictConfig) -> pd.DataFrame:
     Returns:
         Sorted DataFrame with time_idx assigned.
     """
-
     # y_true ≈ a * y_pred + b
     ds = ads.dataset(cfg.paths.dataset_path, format="parquet")
     ts_col = cfg.splits.timestamp_col
@@ -62,7 +47,7 @@ def load_calibration_slice(cfg: DictConfig) -> pd.DataFrame:
         & (ads.field(ts_col) <= pd.Timestamp(cfg.splits.val_end))
     )
     df = ds.to_table(filter=filt).to_pandas(split_blocks=True, self_destruct=True)
-    return ensure_sorted_and_time_idx(df, cfg.model.time_idx, cfg.model.group_ids[0])
+    return ensure_sorted_and_time_idx(df, cfg.model.time_idx)
 
 
 @hydra.main(version_base=None, config_path="../../configs/tft", config_name="tft_model")
@@ -137,10 +122,10 @@ def main(cfg: DictConfig) -> None:
         if df_chunk.empty:
             continue
 
-        df_chunk = ensure_sorted_and_time_idx(df_chunk, cfg.model.time_idx, group_col)
-        df_chunk["timestamp"] = pd.to_datetime(
-            df_chunk[cfg.splits.timestamp_col]
-        ).dt.tz_localize(None)
+        df_chunk = ensure_sorted_and_time_idx(df_chunk, cfg.model.time_idx)
+        df_chunk["timestamp"] = (
+            pd.to_datetime(df_chunk[cfg.splits.timestamp_col]).dt.tz_localize(None)
+        )
 
         per_site_results = []
 

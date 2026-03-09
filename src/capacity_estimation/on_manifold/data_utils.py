@@ -15,7 +15,7 @@ def solar_score(
     vec: dict[str, float],
     weights: dict[str, float],
 ) -> float:
-    """Calculates a scalar score representing solar potential for a weather vector.
+    """Compute a weighted scalar score representing solar potential.
 
     Args:
         vec: Weather feature vector.
@@ -36,7 +36,7 @@ def pool_min_max(
     candidates: list[dict[str, float]],
     cfg: DictConfig,
 ) -> tuple[list[dict[str, float]], list[dict[str, float]]]:
-    """Partitions candidate vectors into extreme 'low' and 'high' solar pools.
+    """Partition candidate vectors into extreme low and high solar pools.
 
     Args:
         candidates: List of generated weather vectors.
@@ -58,11 +58,14 @@ def pool_min_max(
     hi_thr = np.nanpercentile(scores, int(pool_cfg["high"]))
 
     low_pool = [c for c, s in zip(
-        candidates, scores, strict=True
+        candidates,
+        scores,
+        strict=True
     ) if np.isfinite(s) and s <= lo_thr]
-
     high_pool = [c for c, s in zip(
-        candidates, scores, strict=True
+        candidates,
+        scores,
+        strict=True
     ) if np.isfinite(s) and s >= hi_thr]
 
     # Fallback to absolute extremes if percentiles yield empty lists
@@ -78,7 +81,7 @@ def infer_orientation(
     loc_df: pd.DataFrame,
     cfg: DictConfig,
 ) -> int:
-    """Detects if site power output correlates positively or negatively with solar input.
+    """Detect whether site power output correlates positively or negatively with solar input.
 
     Args:
         loc_df: DataFrame for a specific location.
@@ -120,7 +123,7 @@ def apply_daylight_constants(
     mods: dict[str, float],
     cfg: DictConfig,
 ) -> pd.DataFrame:
-    """Overwrites weather features with scenario values during specific hours.
+    """Overwrite weather features with scenario values during daylight hours.
 
     Args:
         df: Input location DataFrame.
@@ -162,7 +165,7 @@ def ensure_sorted_and_time_idx(
     group_col: str,
     cfg: DictConfig,
 ) -> pd.DataFrame:
-    """Ensures data is chronologically ordered with a continuous time index per site.
+    """Sort df chronologically and assign a continuous integer time index per site.
 
     Args:
         df: Input DataFrame.
@@ -172,6 +175,9 @@ def ensure_sorted_and_time_idx(
 
     Returns:
         Sorted DataFrame with continuous time index.
+
+    Raises:
+        KeyError: If timestamp column is missing from df.
     """
     ts_col = cfg.splits.timestamp_col
     if ts_col not in df.columns:
