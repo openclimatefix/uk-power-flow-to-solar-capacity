@@ -1,8 +1,4 @@
-"""
-Brute force scenario simulation using TFT.
-
-This method estimates potential PV capacity.
-"""
+"""Brute-force scenario simulation for TFT capacity estimation."""
 
 from __future__ import annotations
 
@@ -28,28 +24,33 @@ logger = logging.getLogger(__name__)
 
 
 def proxy_for_unseen(loc: str, trained: list[str]) -> str:
-    """Map unseen locations to trained encoder labels."""
+    """Map an unseen location to a trained encoder label via hash.
+
+    Args:
+        loc: Unseen location identifier.
+        trained: List of known encoder classes.
+
+    Returns:
+        A trained location string.
+    """
     return trained[hash(loc) % len(trained)]
 
 
-@hydra.main(
-    version_base=None,
-    config_path="../../configs/scenarios",
-    config_name="brute_force",
-)
+@hydra.main(version_base=None, config_path="../../configs/scenarios", config_name="brute_force")
 def main(cfg: DictConfig) -> None:
+    """Hydra entry point for brute-force capacity estimation.
 
+    Args:
+        cfg: Hydra config injected automatically.
+    """
     torch.set_float32_matmul_precision("high")
-
     device = get_device()
 
     out_dir = Path(cfg.output_dir)
     out_dir.mkdir(parents=True, exist_ok=True)
 
     ckpt = Path(cfg.paths.inference_ckpt)
-
     logger.info("Loading TFT model: %s", ckpt)
-
     model = TFTWithGRU.load_from_checkpoint(str(ckpt)).to(device)
     model.eval()
 
@@ -60,7 +61,6 @@ def main(cfg: DictConfig) -> None:
     trained_sites = list(map(str, enc.classes_))
 
     ds = ads.dataset(cfg.paths.dataset_path, format="parquet")
-
     all_sites = sorted(
         ds.to_table(columns=[group_col])
         .to_pandas()[group_col]
@@ -71,34 +71,28 @@ def main(cfg: DictConfig) -> None:
     sites_per_chunk = cfg.get("sites_per_chunk", 50)
 
     for i in range(0, len(all_sites), sites_per_chunk):
-
-        chunk = all_sites[i:i + sites_per_chunk]
-
-        logger.info("Processing %d sites", len(chunk))
+        chunk = all_sites[i : i + sites_per_chunk]
+        logger.info("Processing chunk %d — %d sites", (i // sites_per_chunk) + 1, len(chunk))
 
         df = (
             ds.to_table(filter=ads.field(group_col).isin(chunk))
-            .to_pandas(split_blocks=True)
+            .to_pandas(split_blocks=True, self_destruct=True)
         )
 
         if df.empty:
             continue
 
-        df = ensure_sorted_and_time_idx(df, time_idx, group_col)
+        df = ensure_sorted_and_time_idx(df, time_idx)
 
         results = []
 
-        for loc, loc_df in tqdm(df.groupby(group_col), desc="sites"):
-
+        for loc, loc_df in tqdm(df.groupby(group_col), desc="sites", leave=False):
+            # Proxy unseen sites to avoid encoder index errors
             proxy = loc if loc in trained_sites else proxy_for_unseen(loc, trained_sites)
-
             work = loc_df.copy()
             work[group_col] = proxy
 
-            feature_cols = [
-                f for f in cfg.scenario_features if f in work.columns
-            ]
-
+            feature_cols = [f for f in cfg.scenario_features if f in work.columns]
             if not feature_cols:
                 continue
 
@@ -111,11 +105,8 @@ def main(cfg: DictConfig) -> None:
                 cfg.push.low,
             )
 
-            df_max = apply_scenario(work, maxs)
-            df_min = apply_scenario(work, mins)
-
-            p_max = predict_timeseries(cfg, model, df_max, cfg.batch_size)
-            p_min = predict_timeseries(cfg, model, df_min, cfg.batch_size)
+            p_max = predict_timeseries(cfg, model, apply_scenario(work, maxs), cfg.batch_size)
+            p_min = predict_timeseries(cfg, model, apply_scenario(work, mins), cfg.batch_size)
 
             if p_max.empty or p_min.empty:
                 continue
@@ -125,27 +116,19 @@ def main(cfg: DictConfig) -> None:
                 on=["location", "timestamp", "horizon_step"],
                 suffixes=("_max", "_min"),
             )
-
             merged["delta"] = (merged["y_hat_max"] - merged["y_hat_min"]).clip(lower=0)
 
-            results.append(
-                {
-                    "location": loc,
-                    "mean_impact_mw": float(merged["delta"].mean()),
-                    "p95_impact_mw": float(merged["delta"].quantile(0.95)),
-                }
-            )
+            results.append({
+                "location": loc,
+                "mean_impact_mw": float(merged["delta"].mean()),
+                "p95_impact_mw": float(merged["delta"].quantile(0.95)),
+            })
 
-        pd.DataFrame(results).to_csv(
-            out_dir / f"summary_chunk_{i}.csv",
-            index=False,
-        )
+        pd.DataFrame(results).to_csv(out_dir / f"summary_chunk_{i}.csv", index=False)
 
         del df
         gc.collect()
-
-        if torch.cuda.is_available():
-            torch.cuda.empty_cache()
+        torch.cuda.empty_cache()
 
 
 if __name__ == "__main__":

@@ -1,10 +1,4 @@
-"""
-Utility functions for brute-force scenario simulation.
-
-The brute force method pushes important solar/weather features
-toward high and low extremes using site-specific
-quantiles and clipping to empirical bounds.
-"""
+"""Utility functions for brute-force solar scenario simulation."""
 
 from __future__ import annotations
 
@@ -22,24 +16,40 @@ def _site_quantiles(
     cols: list[str],
     lo_q: float,
     hi_q: float,
-) -> tuple[dict, dict, dict]:
-    """Compute per location quantiles and bounds."""
+) -> tuple[dict[str, float], dict[str, float], tuple[dict[str, float], dict[str, float]]]:
+    """Compute per-feature quantiles and empirical bounds.
+
+    Args:
+        df: Input DataFrame for one site.
+        cols: Feature columns to compute quantiles over.
+        lo_q: Lower quantile fraction.
+        hi_q: Upper quantile fraction.
+
+    Returns:
+        Tuple of (lo_quantiles, hi_quantiles, (col_mins, col_maxs)).
+    """
     data = df[cols].dropna(how="all")
     if data.empty:
-        return {}, {}, {}
+        return {}, {}, ({}, {})
 
     q = data.quantile([lo_q, hi_q])
     lo = q.iloc[0].to_dict()
     hi = q.iloc[1].to_dict()
-
-    dmin = data.min().to_dict()
-    dmax = data.max().to_dict()
-
-    return lo, hi, (dmin, dmax)
+    return lo, hi, (data.min().to_dict(), data.max().to_dict())
 
 
 def _clip_push(val: float, factor: float, vmin: float, vmax: float) -> float:
-    """Push value and clip to bounds."""
+    """Scale val by factor and clip to [vmin, vmax].
+
+    Args:
+        val: Base value.
+        factor: Multiplicative push factor.
+        vmin: Minimum empirical bound.
+        vmax: Maximum empirical bound.
+
+    Returns:
+        Clipped float.
+    """
     return float(np.clip(val * factor, vmin, vmax))
 
 
@@ -51,17 +61,26 @@ def build_coherent_mods(
     push_hi: float = 1.1,
     push_lo: float = 0.9,
 ) -> tuple[dict[str, float], dict[str, float]]:
-    """
-    Create scenario modifications.
+    """Build high- and low-solar scenario modifications from site quantiles.
 
-    Scenario A: high solar
-    Scenario B: low solar
-    """
+    Cloud and zenith features are inverted (low values → high solar).
+    Irradiance and elevation features are pushed directly.
 
+    Args:
+        df: Single-site DataFrame.
+        cols: Weather feature columns to modify.
+        hi_q: Upper quantile for high-solar scenario.
+        lo_q: Lower quantile for low-solar scenario.
+        push_hi: Multiplicative factor for high-solar push.
+        push_lo: Multiplicative factor for low-solar push.
+
+    Returns:
+        Tuple of (low_solar_mods, high_solar_mods).
+    """
     lo, hi, (dmin, dmax) = _site_quantiles(df, cols, lo_q, hi_q)
 
-    mins = {}
-    maxs = {}
+    mins: dict[str, float] = {}
+    maxs: dict[str, float] = {}
 
     for c in cols:
         if c not in lo:
@@ -78,13 +97,13 @@ def build_coherent_mods(
         is_irr = any(k in c for k in _IRRADIANCE)
 
         if is_cloud or is_zenith:
+            # Lower cloud/zenith → higher solar output
             maxs[c] = _clip_push(lo_v, push_lo, vmin, vmax)
             mins[c] = _clip_push(hi_v, push_hi, vmin, vmax)
-
         elif is_elev or is_irr:
+            # Higher elevation/irradiance → higher solar output
             maxs[c] = _clip_push(hi_v, push_hi, vmin, vmax)
             mins[c] = _clip_push(lo_v, push_lo, vmin, vmax)
-
         else:
             maxs[c] = _clip_push(hi_v, push_hi, vmin, vmax)
             mins[c] = _clip_push(lo_v, push_lo, vmin, vmax)
@@ -97,12 +116,20 @@ def apply_scenario(
     mods: dict[str, float],
     daylight_hours: tuple[int, int] = (6, 19),
 ) -> pd.DataFrame:
-    """Apply feature modifications during daylight."""
+    """Overwrite weather features with scenario values during daylight hours.
+
+    Args:
+        df: Input location DataFrame with a timestamp column.
+        mods: Feature name to replacement value mapping.
+        daylight_hours: Inclusive (start_hour, end_hour) for modifications.
+
+    Returns:
+        Copy of df with scenario modifications applied.
+    """
     if not mods:
         return df
 
     out = df.copy()
-
     start_h, end_h = daylight_hours
     mask = out["timestamp"].dt.hour.between(start_h, end_h)
 
