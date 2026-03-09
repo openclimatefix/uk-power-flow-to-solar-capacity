@@ -1,18 +1,18 @@
 paths:
-  # Training data derrived from per location MW Power Demand and ERA5 weather data
+  # Training data derived from per location MW Power Demand and ERA5 weather data
   dataset_path: PLACEHOLDER.parquet
-  results_path: PLACEHOLDER
-  log_file: PLACEHOLDER
+  results_path: PLACEHOLDER_RESULTS_DIR
+  log_file: PLACEHOLDER.log
 
 splits:
   strategy: 'by_time'
   timestamp_col: 'timestamp'
-  train_start: '2021-01-01 00:00:00'
-  train_end:   '2023-12-31 23:30:00'
-  val_start:   '2024-01-01 00:00:00'
-  val_end:     '2024-12-31 23:30:00'
-  test_start:  '2025-01-01 00:00:00'
-  test_end:    '2025-06-30 23:30:00'
+  train_start: 'PLACEHOLDER_DATETIME'
+  train_end:   'PLACEHOLDER_DATETIME'
+  val_start:   'PLACEHOLDER_DATETIME'
+  val_end:     'PLACEHOLDER_DATETIME'
+  test_start:  'PLACEHOLDER_DATETIME'
+  test_end:    'PLACEHOLDER_DATETIME'
 
 train_split: null
 val_split: null
@@ -123,7 +123,7 @@ model:
     - 'weather_quality_score'
 
 training:
-  batch_size: 8
+  batch_size: 64
   max_epochs: 80
   precision: '32-true'
   accelerator: 'gpu'
