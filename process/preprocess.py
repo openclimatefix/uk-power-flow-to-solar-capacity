@@ -412,14 +412,13 @@ def rank_all_transformers_by_completeness(
         )
         for tx_id in total_counts
     ]
-    summary_df = (
-        pd.DataFrame(
-            summary_data,
-            columns=["tx_id", "total_points", "non_nan_points", "fraction_non_nan"],
-        )
-        .sort_values(by=["fraction_non_nan", "non_nan_points"], ascending=[False, False])
-        .reset_index(drop=True)
-    )
+
+    summary_df = pd.DataFrame(
+        summary_data,
+        columns=["tx_id", "total_points", "non_nan_points", "fraction_non_nan"],
+    ).sort_values(
+        by=["fraction_non_nan", "non_nan_points"], ascending=[False, False]
+    ).reset_index(drop=True)
 
     output_path = Path(cfg.paths.base_data_dir) / "transformer_completeness_summary.csv"
     summary_df.to_csv(output_path, index=False)
