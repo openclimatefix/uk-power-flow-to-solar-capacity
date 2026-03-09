@@ -20,7 +20,7 @@ logger = logging.getLogger(__name__)
 
 
 def ensure_time_idx(df: pd.DataFrame) -> pd.DataFrame:
-    """Ensure timestamp to tz-naive UTC index.
+    """Cast timestamp to tz-naive UTC and assign integer 30-min time index.
 
     Args:
         df: Input DataFrame with a timestamp column.
@@ -43,11 +43,11 @@ def estimate_capacity_for_window(
     analogue_years: list[int],
     cfg: DictConfig,
 ) -> float | None:
-    """Estimate solar capacity for single encoder + horizon window.
+    """Estimate solar capacity for a single encoder + horizon window.
 
-    Builds high and low irradiance analogue scenarios by sampling from
-    historical windows matching, then computes mean daytime delta
-    between the two model predictions.
+    Builds high- and low-irradiance analogue scenarios by sampling from
+    historical windows matching hour-of-day, then computes the mean daytime
+    delta between the two model predictions.
 
     Args:
         eval_window: Encoder + horizon slice for one site.
@@ -58,7 +58,7 @@ def estimate_capacity_for_window(
         cfg: Full Hydra config.
 
     Returns:
-        Estimated capacity in MW.
+        Estimated capacity in MW, or None if insufficient data.
     """
     params = model.dataset_parameters
     max_enc = params.get("max_encoder_length", 336)
@@ -79,7 +79,7 @@ def estimate_capacity_for_window(
     l_pool = lib[lib["ssrd_w_m2"] <= lib["ssrd_w_m2"].quantile(cfg.analogue_percentile_low / 100)]
 
     def _build_scenario(base: pd.DataFrame, library: pd.DataFrame) -> pd.DataFrame:
-        # Replace weather features with analogue samples
+        # Replace weather features row-by-row with hour-matched analogue samples
         scen = base.copy()
         for idx in scen.index:
             h = scen.loc[idx, "timestamp"].hour
@@ -107,7 +107,7 @@ def estimate_capacity_for_window(
     if mask.sum() == 0:
         return None
 
-    # Capacity is mean daytime reduction in output under high vs low irradiance
+    # Capacity = mean daytime reduction in output under high vs low irradiance
     return max(0.0, float((y_low[mask] - y_high[mask]).mean()))
 
 
@@ -120,10 +120,9 @@ def estimate_site_capacity_year(
     analogue_years: list[int],
     cfg: DictConfig,
 ) -> dict[str, float | int] | None:
-    """Estimate capacity for one site in one year via sliding window averaging.
+    """Estimate capacity for one site in one year via sliding-window averaging.
 
     Args:
-        site: Site identifier string.
         site_df: Single-site DataFrame.
         df_full: Full multi-site DataFrame for analogue library.
         model: Loaded TemporalFusionTransformer.
@@ -151,6 +150,7 @@ def estimate_site_capacity_year(
     estimates = []
     for start_idx in range(0, len(site_year) - window_size, cfg.step_size):
         window = site_year.iloc[start_idx : start_idx + window_size]
+
         capacity = estimate_capacity_for_window(
             window, df_full, model, features, analogue_years, cfg
         )
@@ -164,20 +164,20 @@ def estimate_site_capacity_year(
     return {
         "mean": float(np.mean(arr)),
         "p90": float(np.percentile(arr, 90)),
-        "n_samples": len(arr)
+        "n_samples": len(arr),
     }
 
 
 @hydra.main(
     version_base=None,
     config_path="../../configs/capacity_estimation",
-    config_name="historical_analogue"
+    config_name="historical_analogue",
 )
 def main(cfg: DictConfig) -> None:
-    """Main function.
+    """Hydra entry point for year-on-year capacity growth analysis.
 
     Args:
-        cfg: Config injected automatically.
+        cfg: Hydra config injected automatically.
     """
     logger.info("Loading model from %s", cfg.paths.checkpoint)
     model = TemporalFusionTransformer.load_from_checkpoint(cfg.paths.checkpoint)
@@ -204,7 +204,7 @@ def main(cfg: DictConfig) -> None:
                 [year - 2, year - 1] if year > years[0] else list(cfg.analogue_fallback_years)
             )
             estimate = estimate_site_capacity_year(
-                site, site_df, df, model, actual_features, year, analogue_years, cfg
+                site_df, df, model, actual_features, year, analogue_years, cfg
             )
 
             if estimate:
@@ -244,7 +244,7 @@ def main(cfg: DictConfig) -> None:
     df_results.to_csv(cfg.paths.output_csv, index=False)
     logger.info("Results saved to %s", cfg.paths.output_csv)
 
-    # All location summary
+    # Fleet-wide summary
     for j in range(len(years) - 1):
         year1, year2 = years[j], years[j + 1]
         growth_col = f"growth_{year1}_{year2}_mw"
