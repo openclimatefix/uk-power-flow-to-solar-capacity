@@ -11,7 +11,7 @@ import pyarrow as pa
 import pyarrow.parquet as pq
 from omegaconf import DictConfig
 
-from src.process.utils import (
+from process.utils import (
     build_weather_table,
     load_mapping,
     load_power,

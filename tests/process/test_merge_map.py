@@ -4,7 +4,7 @@ from __future__ import annotations
 
 import inspect
 
-from src.process.merge_map import create_combined_power_weather_parquet, main
+from process.merge_map import create_combined_power_weather_parquet, main
 
 
 def test_has_expected_callables() -> None:
