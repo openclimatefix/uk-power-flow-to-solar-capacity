@@ -183,11 +183,9 @@ class OnManifoldSampler:
             self.scaler.var_ = self.scaler.scale_**2
             self.minmax = obj["mm"]
 
-            sites = sorted(
-                pd.read_parquet(self.parquet_path, columns=["location"])["location"]
-                .astype(str)
-                .unique()
-            )
+            loc_series = pd.read_parquet(self.parquet_path, columns=["location"])["location"]
+            sites = sorted(loc_series.astype(str).unique())
+
             self.loc2id = {s: i for i, s in enumerate(sites)}
 
             self.model = _CondVAE(len(self.features), len(self.loc2id)).to(self.device)
