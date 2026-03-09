@@ -416,7 +416,8 @@ def rank_all_transformers_by_completeness(
     summary_df = pd.DataFrame(
         summary_data,
         columns=["tx_id", "total_points", "non_nan_points", "fraction_non_nan"],
-    ).sort_values(
+    )
+    summary_df = summary_df.sort_values(
         by=["fraction_non_nan", "non_nan_points"], ascending=[False, False]
     ).reset_index(drop=True)
 
