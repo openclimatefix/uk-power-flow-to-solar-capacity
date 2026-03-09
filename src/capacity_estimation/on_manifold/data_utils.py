@@ -57,16 +57,12 @@ def pool_min_max(
     lo_thr = np.nanpercentile(scores, int(pool_cfg["low"]))
     hi_thr = np.nanpercentile(scores, int(pool_cfg["high"]))
 
-    low_pool = [c for c, s in zip(
-        candidates,
-        scores,
-        strict=True
-    ) if np.isfinite(s) and s <= lo_thr]
-    high_pool = [c for c, s in zip(
-        candidates,
-        scores,
-        strict=True
-    ) if np.isfinite(s) and s >= hi_thr]
+    low_pool = [
+        c for c, s in zip(candidates, scores, strict=True) if np.isfinite(s) and s <= lo_thr
+    ]
+    high_pool = [
+        c for c, s in zip(candidates, scores, strict=True) if np.isfinite(s) and s >= hi_thr
+    ]
 
     # Fallback to absolute extremes if percentiles yield empty lists
     if not low_pool:
@@ -105,9 +101,8 @@ def infer_orientation(
     mh = pol.get("midday_hours", [11, 14])
 
     # Filter for high-irradiance context to check correlation
-    mask = (
-        loc_df[ts_col].dt.month.between(int(sm[0]), int(sm[1])) &
-        loc_df[ts_col].dt.hour.between(int(mh[0]), int(mh[1]))
+    mask = loc_df[ts_col].dt.month.between(int(sm[0]), int(sm[1])) & loc_df[ts_col].dt.hour.between(
+        int(mh[0]), int(mh[1])
     )
     data = loc_df.loc[mask, [primary_features[0], p_col]].dropna()
 
@@ -150,7 +145,8 @@ def apply_daylight_constants(
 
             # Maintain consistency for engineered 'sibling' features (lags, rolling)
             sibs = [
-                c for c in out.columns
+                c
+                for c in out.columns
                 if c != k and c.startswith(k) and any(x in c for x in ["lag", "roll", "diff"])
             ]
             for s in sibs:

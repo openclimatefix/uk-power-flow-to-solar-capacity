@@ -56,9 +56,7 @@ def dataset() -> TimeSeriesDataSet:
         add_relative_time_idx=True,
         add_target_scales=True,
         add_encoder_length=True,
-        target_normalizer=GroupNormalizer(
-            groups=["location"], transformation="softplus"
-        ),
+        target_normalizer=GroupNormalizer(groups=["location"], transformation="softplus"),
     )
 
 

@@ -48,7 +48,10 @@ def check_csv_basic(path: str | Path, nrows: int = 100) -> pd.DataFrame | None:
     df = pd.read_csv(p, nrows=nrows)
     logger.info(
         "Loaded sample from %s: %d rows, %d columns. Columns: %s",
-        p, len(df), df.shape[1], list(df.columns),
+        p,
+        len(df),
+        df.shape[1],
+        list(df.columns),
     )
     return df
 
@@ -104,9 +107,7 @@ def run_sanity_checks(cfg: DictConfig) -> None:
 
     df_agg_sample = check_csv_basic(paths.combined_aggregated_location_csv)
     if df_agg_sample is not None:
-        missing = [
-            c for c in ("tx_id", "hh", "active_power_kW") if c not in df_agg_sample.columns
-        ]
+        missing = [c for c in ("tx_id", "hh", "active_power_kW") if c not in df_agg_sample.columns]
         if missing:
             logger.warning("AGG_LOCATION sample missing expected columns: %s", missing)
         else:

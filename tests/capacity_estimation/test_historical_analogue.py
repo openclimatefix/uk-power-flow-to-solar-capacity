@@ -15,9 +15,7 @@ from src.capacity_estimation.historical_analogue import (
     estimate_site_capacity_year,
 )
 
-_ANALOGUE_PATCH = (
-    "src.capacity_estimation.historical_analogue.estimate_capacity_for_window"
-)
+_ANALOGUE_PATCH = "src.capacity_estimation.historical_analogue.estimate_capacity_for_window"
 
 
 @pytest.fixture
@@ -54,42 +52,32 @@ def _make_model(max_enc: int = 10, max_pred: int = 5) -> MagicMock:
 
 
 def test_ensure_time_idx_removes_timezone() -> None:
-    df = pd.DataFrame({
-        "timestamp": pd.date_range("2022-01-01", periods=4, freq="30min", tz="UTC")
-    })
+    df = pd.DataFrame({"timestamp": pd.date_range("2022-01-01", periods=4, freq="30min", tz="UTC")})
     out = ensure_time_idx(df)
     assert out["timestamp"].dt.tz is None
 
 
 def test_ensure_time_idx_starts_at_zero() -> None:
-    df = pd.DataFrame({
-        "timestamp": pd.date_range("2022-01-01", periods=4, freq="30min", tz="UTC")
-    })
+    df = pd.DataFrame({"timestamp": pd.date_range("2022-01-01", periods=4, freq="30min", tz="UTC")})
     out = ensure_time_idx(df)
     assert out["time_idx"].iloc[0] == 0
 
 
 def test_ensure_time_idx_increments_by_one_per_half_hour() -> None:
-    df = pd.DataFrame({
-        "timestamp": pd.date_range("2022-01-01", periods=6, freq="30min", tz="UTC")
-    })
+    df = pd.DataFrame({"timestamp": pd.date_range("2022-01-01", periods=6, freq="30min", tz="UTC")})
     out = ensure_time_idx(df)
     assert list(out["time_idx"]) == [0, 1, 2, 3, 4, 5]
 
 
 def test_ensure_time_idx_does_not_mutate_input() -> None:
-    df = pd.DataFrame({
-        "timestamp": pd.date_range("2022-01-01", periods=4, freq="30min", tz="UTC")
-    })
+    df = pd.DataFrame({"timestamp": pd.date_range("2022-01-01", periods=4, freq="30min", tz="UTC")})
     original_ts = df["timestamp"].copy()
     ensure_time_idx(df)
     pd.testing.assert_series_equal(df["timestamp"], original_ts)
 
 
 def test_ensure_time_idx_handles_naive_timestamps() -> None:
-    df = pd.DataFrame({
-        "timestamp": pd.date_range("2022-01-01", periods=4, freq="30min")
-    })
+    df = pd.DataFrame({"timestamp": pd.date_range("2022-01-01", periods=4, freq="30min")})
     out = ensure_time_idx(df)
     assert "time_idx" in out.columns
 
@@ -113,9 +101,7 @@ def test_estimate_capacity_returns_none_if_no_peak_hours_in_window(cfg) -> None:
     model = _make_model(max_enc=5, max_pred=3)
     df = _make_df(20, year=2022)
 
-    with patch(
-        "src.capacity_estimation.historical_analogue.TimeSeriesDataSet"
-    ) as mock_ds:
+    with patch("src.capacity_estimation.historical_analogue.TimeSeriesDataSet") as mock_ds:
         mock_dl = MagicMock()
         mock_ds.from_parameters.return_value.to_dataloader.return_value = mock_dl
         tensor_mock = MagicMock()
@@ -132,9 +118,7 @@ def test_estimate_capacity_non_negative(cfg) -> None:
     model = _make_model(max_enc=5, max_pred=3)
     df = _make_df(50, year=2022)
 
-    with patch(
-        "src.capacity_estimation.historical_analogue.TimeSeriesDataSet"
-    ) as mock_ds:
+    with patch("src.capacity_estimation.historical_analogue.TimeSeriesDataSet") as mock_ds:
         mock_dl = MagicMock()
         mock_ds.from_parameters.return_value.to_dataloader.return_value = mock_dl
         tensor_mock = MagicMock()

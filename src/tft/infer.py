@@ -55,24 +55,18 @@ def read_test_slice(
 
     df = df.sort_values(["location", "timestamp"]).reset_index(drop=True)
     df["location"] = df["location"].astype(str)
-    df["timestamp"] = (
-        pd.to_datetime(df["timestamp"], utc=True).dt.tz_localize(None)
-    )
+    df["timestamp"] = pd.to_datetime(df["timestamp"], utc=True).dt.tz_localize(None)
 
     test_start = pd.Timestamp(cfg.splits.test_start)
     test_end = pd.Timestamp(cfg.splits.test_end)
     window_start = test_start - freq * enc_steps
     window_end = test_end + freq * (h_len - 1)
 
-    df = df[
-        (df["timestamp"] >= window_start) & (df["timestamp"] <= window_end)
-    ].copy()
+    df = df[(df["timestamp"] >= window_start) & (df["timestamp"] <= window_end)].copy()
 
     time_idx_col = model_cfg.time_idx
     if time_idx_col not in df.columns:
-        df[time_idx_col] = (
-            df.groupby("location", sort=False).cumcount().astype("int64")
-        )
+        df[time_idx_col] = df.groupby("location", sort=False).cumcount().astype("int64")
     else:
         df[time_idx_col] = df[time_idx_col].astype("int64")
 
@@ -101,17 +95,13 @@ def build_pred_dataset(
     if not mask.any():
         return None, -1
 
-    min_pred_idx = int(
-        df.loc[mask].groupby("location")[time_idx_col].min().max()
-    )
+    min_pred_idx = int(df.loc[mask].groupby("location")[time_idx_col].min().max())
 
     dataset_params = dict(model.hparams.dataset_parameters)
     dataset_params["min_prediction_idx"] = min_pred_idx
     dataset_params.pop("predict", None)
 
-    pred_ds = TimeSeriesDataSet.from_parameters(
-        dataset_params, df, stop_randomization=True
-    )
+    pred_ds = TimeSeriesDataSet.from_parameters(dataset_params, df, stop_randomization=True)
     return pred_ds, min_pred_idx
 
 
@@ -173,10 +163,7 @@ def run_predict_one_chunk(
     horizon_offsets = np.tile(np.arange(h_len), n_samples)
     tidxs = t0s_rep + horizon_offsets
 
-    timestamps = [
-        key_map.get((loc, int(tidx)))
-        for loc, tidx in zip(locs_rep, tidxs, strict=True)
-    ]
+    timestamps = [key_map.get((loc, int(tidx))) for loc, tidx in zip(locs_rep, tidxs, strict=True)]
 
     pred_df = pd.DataFrame({
         "location": locs_rep,
@@ -187,10 +174,7 @@ def run_predict_one_chunk(
 
     test_start = pd.Timestamp(cfg.splits.test_start)
     test_end = pd.Timestamp(cfg.splits.test_end)
-    in_window = (
-        (pred_df["timestamp"] >= test_start)
-        & (pred_df["timestamp"] <= test_end)
-    )
+    in_window = (pred_df["timestamp"] >= test_start) & (pred_df["timestamp"] <= test_end)
     return pred_df.loc[in_window].copy()
 
 
@@ -263,9 +247,7 @@ def main(cfg: DictConfig) -> None:
     group_id_col = cfg.model.group_ids[0]
     sites = sorted(
         str(s)
-        for s in model.hparams.dataset_parameters[
-            "categorical_encoders"
-        ][group_id_col].classes_
+        for s in model.hparams.dataset_parameters["categorical_encoders"][group_id_col].classes_
     )
     logger.info("Running inference over %d sites.", len(sites))
 

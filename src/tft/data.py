@@ -51,30 +51,24 @@ def create_production_datasets(
     logger.info("Loading dataset from: %s", dataset_path)
 
     model_cfg = cfg.model
-    needed_cols = list(
-        {
-            *list(model_cfg.group_ids),
-            model_cfg.target,
-            "timestamp",
-            *list(model_cfg.static_categoricals),
-            *list(model_cfg.static_reals),
-            *list(model_cfg.time_varying_known_reals),
-            *list(model_cfg.time_varying_unknown_reals),
-        }
-    )
+    needed_cols = list({
+        *list(model_cfg.group_ids),
+        model_cfg.target,
+        "timestamp",
+        *list(model_cfg.static_categoricals),
+        *list(model_cfg.static_reals),
+        *list(model_cfg.time_varying_known_reals),
+        *list(model_cfg.time_varying_unknown_reals),
+    })
 
     pdf = _load_parquet_columns(dataset_path, needed_cols)
     pdf = pdf.sort_values(["location", "timestamp"]).reset_index(drop=True)
     pdf["location"] = pdf["location"].astype(str)
 
-    logger.info(
-        "Loaded %d rows across %d locations.", len(pdf), pdf["location"].nunique()
-    )
+    logger.info("Loaded %d rows across %d locations.", len(pdf), pdf["location"].nunique())
 
     target_col = (
-        "active_power_mw_clean"
-        if "active_power_mw_clean" in pdf.columns
-        else model_cfg.target
+        "active_power_mw_clean" if "active_power_mw_clean" in pdf.columns else model_cfg.target
     )
 
     cols = pdf.columns.tolist()
@@ -85,9 +79,7 @@ def create_production_datasets(
     group_ids = list(model_cfg.group_ids)
     add_target_scales: bool = bool(model_cfg.get("add_target_scales", True))
 
-    pdf["time_idx"] = (
-        pdf.groupby("location", sort=False).cumcount().astype("int64")
-    )
+    pdf["time_idx"] = pdf.groupby("location", sort=False).cumcount().astype("int64")
 
     shared_kwargs = _shared_tsd_kwargs(
         model_cfg=model_cfg,
@@ -135,22 +127,20 @@ def _shared_tsd_kwargs(
         Dict of kwargs for TimeSeriesDataSet.
     """
     return {
-            "time_idx": "time_idx",
-            "target": target_col,
-            "group_ids": group_ids,
-            "max_encoder_length": model_cfg.max_encoder_length,
-            "max_prediction_length": model_cfg.max_prediction_length,
-            "static_categoricals": static_categoricals,
-            "static_reals": static_reals,
-            "time_varying_known_reals": known_reals,
-            "time_varying_unknown_reals": unknown_reals,
-            "add_relative_time_idx": True,
-            "add_target_scales": add_target_scales,
-            "add_encoder_length": False,
-            "target_normalizer": GroupNormalizer(
-                groups=group_ids, transformation="softplus"
-            ),
-        }
+        "time_idx": "time_idx",
+        "target": target_col,
+        "group_ids": group_ids,
+        "max_encoder_length": model_cfg.max_encoder_length,
+        "max_prediction_length": model_cfg.max_prediction_length,
+        "static_categoricals": static_categoricals,
+        "static_reals": static_reals,
+        "time_varying_known_reals": known_reals,
+        "time_varying_unknown_reals": unknown_reals,
+        "add_relative_time_idx": True,
+        "add_target_scales": add_target_scales,
+        "add_encoder_length": False,
+        "target_normalizer": GroupNormalizer(groups=group_ids, transformation="softplus"),
+    }
 
 
 def _split_by_time(
@@ -177,15 +167,10 @@ def _split_by_time(
     val_end = pd.Timestamp(spl["val_end"])
 
     val_start_idx = int(
-        pdf.loc[pdf[ts_col] >= val_start]
-        .groupby("location")["time_idx"]
-        .min()
-        .max()
+        pdf.loc[pdf[ts_col] >= val_start].groupby("location")["time_idx"].min().max()
     )
 
-    training_dataset = TimeSeriesDataSet(
-        pdf[pdf[ts_col] <= train_end].copy(), **shared_kwargs
-    )
+    training_dataset = TimeSeriesDataSet(pdf[pdf[ts_col] <= train_end].copy(), **shared_kwargs)
     validation_dataset = TimeSeriesDataSet.from_dataset(
         training_dataset,
         pdf[pdf[ts_col] <= val_end],

@@ -50,17 +50,13 @@ def intersect_features(
         return []
 
     if isinstance(keys, (DictConfig, ListConfig)):
-        keys_list: list[str] = [
-            str(k) for k in OmegaConf.to_container(keys, resolve=True)
-        ]
+        keys_list: list[str] = [str(k) for k in OmegaConf.to_container(keys, resolve=True)]
     else:
         keys_list = [str(k) for k in keys]
 
     missing = [k for k in keys_list if k not in existing_cols]
     if missing:
-        logger.warning(
-            "Missing %d configured feature(s): %s", len(missing), missing[:10]
-        )
+        logger.warning("Missing %d configured feature(s): %s", len(missing), missing[:10])
 
     return [k for k in keys_list if k in existing_cols]
 
@@ -163,9 +159,8 @@ def ensure_ts_naive(df: pd.DataFrame) -> pd.DataFrame:
         return df
 
     df = df.copy()
-    df["timestamp"] = (
-        pd.to_datetime(df["timestamp"], errors="coerce", utc=True)
-        .dt.tz_localize(None)
+    df["timestamp"] = pd.to_datetime(df["timestamp"], errors="coerce", utc=True).dt.tz_localize(
+        None
     )
     return df
 
@@ -185,9 +180,7 @@ def ensure_sorted_and_time_idx(
     """
     df = df.sort_values(["location", "timestamp"]).reset_index(drop=True)
     if time_idx_col not in df.columns:
-        df[time_idx_col] = (
-            df.groupby("location", sort=False).cumcount().astype("int64")
-        )
+        df[time_idx_col] = df.groupby("location", sort=False).cumcount().astype("int64")
     else:
         df[time_idx_col] = df[time_idx_col].astype("int64")
     return df
@@ -225,24 +218,14 @@ def ensure_time_idx_from_origin(
     ts = df[ts_col]
 
     if getattr(ts.dtype, "tz", None) is not None:
-        origin = (
-            origin_utc
-            if origin_utc.tzinfo is not None
-            else origin_utc.tz_localize("UTC")
-        )
+        origin = origin_utc if origin_utc.tzinfo is not None else origin_utc.tz_localize("UTC")
         delta = ts - origin
     else:
-        origin = (
-            origin_utc.tz_convert(None)
-            if origin_utc.tzinfo is not None
-            else origin_utc
-        )
+        origin = origin_utc.tz_convert(None) if origin_utc.tzinfo is not None else origin_utc
         delta = ts - origin
 
     step_ns = np.int64(freq_minutes) * 60 * 1_000_000_000
-    df[time_idx_col] = (
-        (delta.dt.total_seconds() * 1_000_000_000).astype("int64") // step_ns
-    )
+    df[time_idx_col] = (delta.dt.total_seconds() * 1_000_000_000).astype("int64") // step_ns
     return df
 
 

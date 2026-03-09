@@ -62,10 +62,7 @@ def build_arrow_filter(
             ts = ts.tz_localize("UTC") if ts.tzinfo is None else ts.tz_convert("UTC")
         return pa.scalar(ts.to_pydatetime(), type=ts_type)
 
-    filt = (
-        (ads.field(ts_col) >= _to_scalar(start))
-        & (ads.field(ts_col) <= _to_scalar(end))
-    )
+    filt = (ads.field(ts_col) >= _to_scalar(start)) & (ads.field(ts_col) <= _to_scalar(end))
 
     if loc_col and exclude_locs:
         filt = filt & ~ads.field(loc_col).isin(exclude_locs)
@@ -140,17 +137,15 @@ def main(cfg: DictConfig) -> None:
     schema_names = set(arrow_ds.schema.names)
 
     raw_cols = [
-            ts_col,
-            "location",
-            *model_cfg.get("static_reals", []),
-            *model_cfg.get("time_varying_known_reals", []),
-            *model_cfg.get("time_varying_unknown_reals", []),
-            target_col,
-        ]
+        ts_col,
+        "location",
+        *model_cfg.get("static_reals", []),
+        *model_cfg.get("time_varying_known_reals", []),
+        *model_cfg.get("time_varying_unknown_reals", []),
+        target_col,
+    ]
 
-    cols = sorted(
-        {c for c in raw_cols if c in schema_names and c not in drop_cols}
-    )
+    cols = sorted({c for c in raw_cols if c in schema_names and c not in drop_cols})
 
     missing_required = [c for c in (ts_col, "location", target_col) if c not in cols]
     if missing_required:
@@ -168,9 +163,7 @@ def main(cfg: DictConfig) -> None:
 
     train_df["location"] = train_df["location"].astype("category")
     train_df = train_df.sort_values(["location", ts_col]).reset_index(drop=True)
-    train_df[time_idx_col] = (
-        train_df.groupby("location", sort=False).cumcount().astype("int64")
-    )
+    train_df[time_idx_col] = train_df.groupby("location", sort=False).cumcount().astype("int64")
 
     for col in train_df.select_dtypes("float64").columns:
         train_df[col] = train_df[col].astype("float32")

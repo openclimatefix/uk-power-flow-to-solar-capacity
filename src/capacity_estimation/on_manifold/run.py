@@ -42,9 +42,8 @@ def load_calibration_slice(cfg: DictConfig) -> pd.DataFrame:
     # y_true ≈ a * y_pred + b
     ds = ads.dataset(cfg.paths.dataset_path, format="parquet")
     ts_col = cfg.splits.timestamp_col
-    filt = (
-        (ads.field(ts_col) >= pd.Timestamp(cfg.splits.val_start))
-        & (ads.field(ts_col) <= pd.Timestamp(cfg.splits.val_end))
+    filt = (ads.field(ts_col) >= pd.Timestamp(cfg.splits.val_start)) & (
+        ads.field(ts_col) <= pd.Timestamp(cfg.splits.val_end)
     )
     df = ds.to_table(filter=filt).to_pandas(split_blocks=True, self_destruct=True)
     return ensure_sorted_and_time_idx(df, cfg.model.time_idx)
@@ -114,17 +113,16 @@ def main(cfg: DictConfig) -> None:
         logger.info("Processing chunk %d (%d sites)", (i // sites_per_chunk) + 1, len(chunk_sites))
 
         ds = ads.dataset(cfg.paths.dataset_path, format="parquet")
-        df_chunk = (
-            ds.to_table(filter=ads.field(group_col).isin(chunk_sites))
-            .to_pandas(split_blocks=True, self_destruct=True)
+        df_chunk = ds.to_table(filter=ads.field(group_col).isin(chunk_sites)).to_pandas(
+            split_blocks=True, self_destruct=True
         )
 
         if df_chunk.empty:
             continue
 
         df_chunk = ensure_sorted_and_time_idx(df_chunk, cfg.model.time_idx)
-        df_chunk["timestamp"] = (
-            pd.to_datetime(df_chunk[cfg.splits.timestamp_col]).dt.tz_localize(None)
+        df_chunk["timestamp"] = pd.to_datetime(df_chunk[cfg.splits.timestamp_col]).dt.tz_localize(
+            None
         )
 
         per_site_results = []

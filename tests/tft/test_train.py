@@ -45,8 +45,7 @@ def test_hparams_compatibility_logic(monkeypatch, tmp_path) -> None:
     dummy_path = tmp_path / "test.ckpt"
 
     monkeypatch.setattr(
-        "torch.load",
-        lambda *_, **__: {"hyper_parameters": {"learning_rate": 0.001}}
+        "torch.load", lambda *_, **__: {"hyper_parameters": {"learning_rate": 0.001}}
     )
 
     ckpt = torch.load(str(dummy_path))

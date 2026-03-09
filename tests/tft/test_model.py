@@ -48,9 +48,7 @@ def test_overlap_loss_none_for_non_tensor() -> None:
     assert TFTWithGRU._head_overlap_loss(None) is None
 
 
-def test_step_adds_penalty_during_training(
-    cfg: DictConfig, dataset: TimeSeriesDataSet
-) -> None:
+def test_step_adds_penalty_during_training(cfg: DictConfig, dataset: TimeSeriesDataSet) -> None:
     m = create_final_model(cfg, dataset)
     m.__dict__["diversity_lambda"] = 1.0
     m.train()
@@ -66,9 +64,7 @@ def test_step_adds_penalty_during_training(
     assert result.item() > 1.0
 
 
-def test_step_no_penalty_during_eval(
-    cfg: DictConfig, dataset: TimeSeriesDataSet
-) -> None:
+def test_step_no_penalty_during_eval(cfg: DictConfig, dataset: TimeSeriesDataSet) -> None:
     m = create_final_model(cfg, dataset)
     m.eval()
     base_loss = torch.tensor(2.5)

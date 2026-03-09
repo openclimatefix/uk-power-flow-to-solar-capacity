@@ -41,8 +41,7 @@ def sample_df():
 
 def test_build_pred_dataset_returns_none_when_no_test_rows(cfg, sample_df) -> None:
     cfg_early = OmegaConf.merge(
-        cfg,
-        {"splits": {"test_start": "2025-01-01", "test_end": "2025-01-02"}}
+        cfg, {"splits": {"test_start": "2025-01-01", "test_end": "2025-01-02"}}
     )
     model = MagicMock()
     model.hparams.dataset_parameters = {}

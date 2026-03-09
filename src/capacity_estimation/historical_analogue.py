@@ -139,9 +139,7 @@ def estimate_site_capacity_year(
     window_size = max_enc + max_pred
 
     site_year = (
-        site_df[site_df["timestamp"].dt.year == year]
-        .sort_values("time_idx")
-        .reset_index(drop=True)
+        site_df[site_df["timestamp"].dt.year == year].sort_values("time_idx").reset_index(drop=True)
     )
 
     if len(site_year) < cfg.min_samples_per_site:
@@ -255,7 +253,8 @@ def main(cfg: DictConfig) -> None:
             n_positive = (valid[growth_col] > 0).sum()
             logger.info(
                 "%d → %d | sites=%d | avg=%.3f MW (%.1f%%) | median=%.1f%% | positive=%d/%d",
-                year1, year2,
+                year1,
+                year2,
                 len(valid),
                 valid[growth_col].mean(),
                 valid[growth_pct_col].mean(),
@@ -276,7 +275,8 @@ def main(cfg: DictConfig) -> None:
         ]
         logger.info(
             "Top 10 growing sites (%d→%d):\n%s",
-            year1, year2,
+            year1,
+            year2,
             df_results.nlargest(10, growth_col)[top_cols].to_string(index=False),
         )
 

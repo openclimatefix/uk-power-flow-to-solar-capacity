@@ -61,12 +61,7 @@ def main(cfg: DictConfig) -> None:
     trained_sites = list(map(str, enc.classes_))
 
     ds = ads.dataset(cfg.paths.dataset_path, format="parquet")
-    all_sites = sorted(
-        ds.to_table(columns=[group_col])
-        .to_pandas()[group_col]
-        .astype(str)
-        .unique()
-    )
+    all_sites = sorted(ds.to_table(columns=[group_col]).to_pandas()[group_col].astype(str).unique())
 
     sites_per_chunk = cfg.get("sites_per_chunk", 50)
 
@@ -74,9 +69,8 @@ def main(cfg: DictConfig) -> None:
         chunk = all_sites[i : i + sites_per_chunk]
         logger.info("Processing chunk %d — %d sites", (i // sites_per_chunk) + 1, len(chunk))
 
-        df = (
-            ds.to_table(filter=ads.field(group_col).isin(chunk))
-            .to_pandas(split_blocks=True, self_destruct=True)
+        df = ds.to_table(filter=ads.field(group_col).isin(chunk)).to_pandas(
+            split_blocks=True, self_destruct=True
         )
 
         if df.empty:

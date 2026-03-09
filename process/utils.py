@@ -40,12 +40,15 @@ def analyze_directory(directory: str) -> None:
 
     logger.info(
         "Directory %s: %d folders, %d files, %.2f GB",
-        directory, folder_count, file_count, total_size / (1024 ** 3),
+        directory,
+        folder_count,
+        file_count,
+        total_size / (1024**3),
     )
     if file_sizes:
-        logger.info("Average file size %.2f MB", np.mean(file_sizes) / (1024 ** 2))
-        logger.info("Largest file size %.2f MB", np.max(file_sizes) / (1024 ** 2))
-        logger.info("Smallest file size %.2f MB", np.min(file_sizes) / (1024 ** 2))
+        logger.info("Average file size %.2f MB", np.mean(file_sizes) / (1024**2))
+        logger.info("Largest file size %.2f MB", np.max(file_sizes) / (1024**2))
+        logger.info("Smallest file size %.2f MB", np.min(file_sizes) / (1024**2))
 
 
 def extract_zip(zip_path: str, extract_to: str) -> None:
@@ -300,6 +303,7 @@ def merge_power_with_weather(
 
     merged = power_df.merge(weather_df, on=["location", "timestamp"], how="inner")
     logger.info(
-        "Merged power with weather on location and timestamp, resulting rows: %d", len(merged),
+        "Merged power with weather on location and timestamp, resulting rows: %d",
+        len(merged),
     )
     return merged

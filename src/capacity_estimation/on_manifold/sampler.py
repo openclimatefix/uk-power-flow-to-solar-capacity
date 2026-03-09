@@ -42,16 +42,20 @@ class _CondVAE(nn.Module):
 
         # Encoder: x + context -> latent distribution parameters (mu, logvar)
         self.encoder = nn.Sequential(
-            nn.Linear(x_dim + cond_dim, hidden), nn.ReLU(),
-            nn.Linear(hidden, hidden), nn.ReLU(),
+            nn.Linear(x_dim + cond_dim, hidden),
+            nn.ReLU(),
+            nn.Linear(hidden, hidden),
+            nn.ReLU(),
         )
         self.mu = nn.Linear(hidden, z_dim)
         self.logvar = nn.Linear(hidden, z_dim)
 
         # Decoder: z + context -> reconstructed x
         self.decoder = nn.Sequential(
-            nn.Linear(z_dim + cond_dim, hidden), nn.ReLU(),
-            nn.Linear(hidden, hidden), nn.ReLU(),
+            nn.Linear(z_dim + cond_dim, hidden),
+            nn.ReLU(),
+            nn.Linear(hidden, hidden),
+            nn.ReLU(),
             nn.Linear(hidden, x_dim),
         )
 
@@ -130,7 +134,7 @@ class OnManifoldSampler:
     def _get_paths(self) -> tuple[Path, Path]:
         """Generate deterministic paths for model artifacts."""
         tag = "_".join(sorted(self.features))
-        h = hash(tag) & 0xfffffff
+        h = hash(tag) & 0xFFFFFFF
         return self.save_dir / f"cvae_{h}.pt", self.save_dir / f"scaler_{h}.json"
 
     def _prepare_data(self) -> tuple[np.ndarray, np.ndarray, np.ndarray, np.ndarray]:
@@ -176,12 +180,13 @@ class OnManifoldSampler:
             self.scaler = StandardScaler()
             self.scaler.mean_ = np.array(obj["m"])
             self.scaler.scale_ = np.array(obj["s"])
-            self.scaler.var_ = self.scaler.scale_ ** 2
+            self.scaler.var_ = self.scaler.scale_**2
             self.minmax = obj["mm"]
 
             sites = sorted(
                 pd.read_parquet(self.parquet_path, columns=["location"])["location"]
-                .astype(str).unique()
+                .astype(str)
+                .unique()
             )
             self.loc2id = {s: i for i, s in enumerate(sites)}
 
@@ -224,11 +229,14 @@ class OnManifoldSampler:
         # Persist weights and scaler separately so scaler can be inspected without loading torch
         torch.save(self.model.state_dict(), m_path)
         with open(s_path, "w") as f:
-            json.dump({
-                "m": self.scaler.mean_.tolist(),
-                "s": self.scaler.scale_.tolist(),
-                "mm": self.minmax,
-            }, f)
+            json.dump(
+                {
+                    "m": self.scaler.mean_.tolist(),
+                    "s": self.scaler.scale_.tolist(),
+                    "mm": self.minmax,
+                },
+                f,
+            )
 
         self.model.eval()
 
@@ -248,9 +256,9 @@ class OnManifoldSampler:
 
         # Sample from latent prior z ~ N(0, I) and decode through conditioned generator
         z = torch.randn(k, self.model.z_dim, device=self.device)
-        xs_scaled = self.model.decoder(
-            torch.cat([z, self.model._cond(loc, mo, hr)], dim=-1)
-        ).cpu().numpy()
+        xs_scaled = (
+            self.model.decoder(torch.cat([z, self.model._cond(loc, mo, hr)], dim=-1)).cpu().numpy()
+        )
 
         # Invert standardisation to recover physical feature magnitudes
         x_inv = self.scaler.inverse_transform(xs_scaled)

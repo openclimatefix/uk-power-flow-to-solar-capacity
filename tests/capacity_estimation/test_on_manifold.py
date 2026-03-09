@@ -177,9 +177,10 @@ def test_apply_daylight_constants_updates_sibling_features(cfg) -> None:
 
 
 def test_apply_daylight_constants_noop_empty_mods(cfg) -> None:
-    df = pd.DataFrame(
-        {"timestamp": pd.date_range("2021-06-01", periods=4, freq="h"), "ssrd_w_m2": 1.0}
-    )
+    df = pd.DataFrame({
+        "timestamp": pd.date_range("2021-06-01", periods=4, freq="h"),
+        "ssrd_w_m2": 1.0,
+    })
     out = apply_daylight_constants(df, {}, cfg)
     pd.testing.assert_frame_equal(df, out)
 

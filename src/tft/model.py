@@ -79,10 +79,7 @@ class TFTWithGRU(TemporalFusionTransformer):
         scheduler_type = str(raw_type).strip().lower()
         cosine_t_max = int(self.__dict__.get("cosine_t_max", self.hparams.get("max_epochs", 50)))
         plateau_patience = int(
-            self.__dict__.get(
-                "plateau_patience",
-                self.hparams.get("reduce_on_plateau_patience", 2)
-            )
+            self.__dict__.get("plateau_patience", self.hparams.get("reduce_on_plateau_patience", 2))
         )
 
         if scheduler_type != "plateau":
@@ -137,9 +134,9 @@ class TFTWithGRU(TemporalFusionTransformer):
 
         a_flat = a.reshape(num_heads, -1)
         sim = torch.einsum("is,js->ij", a_flat, a_flat)
-        mask = torch.ones(
-            num_heads, num_heads, device=sim.device, dtype=torch.bool
-        ).triu(diagonal=1)
+        mask = torch.ones(num_heads, num_heads, device=sim.device, dtype=torch.bool).triu(
+            diagonal=1
+        )
         return sim[mask].sum() / (num_heads * (num_heads - 1) / 2.0)
 
     def step(

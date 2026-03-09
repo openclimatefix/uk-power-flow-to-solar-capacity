@@ -54,10 +54,7 @@ def combine_all_hh_files(
 
     logger.info("Combining HH files from %s", base_path)
 
-    hh_files: list[str] = [
-        str(p)
-        for p in Path(base_path).rglob("*_HH_data.csv")
-    ]
+    hh_files: list[str] = [str(p) for p in Path(base_path).rglob("*_HH_data.csv")]
 
     if sample_run:
         limit = int(processing.sample_file_limit)
@@ -136,10 +133,7 @@ def combine_hh_files_streaming(
 
     logger.info("Streaming combination of HH files from %s", base_path)
 
-    hh_files: list[str] = [
-        str(p)
-        for p in Path(base_path).rglob("*_HH_data.csv")
-    ]
+    hh_files: list[str] = [str(p) for p in Path(base_path).rglob("*_HH_data.csv")]
 
     out = Path(output_path)
     if out.exists():
@@ -206,7 +200,11 @@ def quick_file_check(
 
     logger.info(
         "File %s: %d rows, %d transformers, date range %s to %s",
-        filepath, total_rows, len(unique_tx_ids), min_date, max_date,
+        filepath,
+        total_rows,
+        len(unique_tx_ids),
+        min_date,
+        max_date,
     )
 
 
@@ -297,7 +295,12 @@ def check_combined_file(
 
     logger.info(
         "Combined file %s: %d rows, %d transformers, date range %s to %s, missing kva in sample %d",
-        filepath, total_rows, len(unique_tx_ids), min_date, max_date, missing_kva,
+        filepath,
+        total_rows,
+        len(unique_tx_ids),
+        min_date,
+        max_date,
+        missing_kva,
     )
 
 
@@ -401,16 +404,22 @@ def rank_all_transformers_by_completeness(
             non_nan_counts[tx_id] += int(group["kva"].notna().sum())
 
     summary_data = [
-        (tx_id, total_counts[tx_id], non_nan_counts[tx_id],
-         non_nan_counts[tx_id] / total_counts[tx_id] if total_counts[tx_id] > 0 else 0.0)
+        (
+            tx_id,
+            total_counts[tx_id],
+            non_nan_counts[tx_id],
+            non_nan_counts[tx_id] / total_counts[tx_id] if total_counts[tx_id] > 0 else 0.0,
+        )
         for tx_id in total_counts
     ]
-    summary_df = pd.DataFrame(
-        summary_data,
-        columns=["tx_id", "total_points", "non_nan_points", "fraction_non_nan"],
-    ).sort_values(
-        by=["fraction_non_nan", "non_nan_points"], ascending=[False, False]
-    ).reset_index(drop=True)
+    summary_df = (
+        pd.DataFrame(
+            summary_data,
+            columns=["tx_id", "total_points", "non_nan_points", "fraction_non_nan"],
+        )
+        .sort_values(by=["fraction_non_nan", "non_nan_points"], ascending=[False, False])
+        .reset_index(drop=True)
+    )
 
     output_path = Path(cfg.paths.base_data_dir) / "transformer_completeness_summary.csv"
     summary_df.to_csv(output_path, index=False)
@@ -637,7 +646,8 @@ def match_locations_to_geo(
     df_unmatched = pd.DataFrame(unmatched)
     logger.info(
         "Location matching complete: %d matched, %d unmatched",
-        len(df_matches), len(df_unmatched),
+        len(df_matches),
+        len(df_unmatched),
     )
     return df_matches, df_unmatched
 

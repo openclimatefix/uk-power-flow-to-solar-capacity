@@ -75,6 +75,7 @@ def build_loggers(training_cfg: DictConfig) -> list:
     """
     if training_cfg.get("logger") == "wandb":
         from lightning.pytorch.loggers import WandbLogger
+
         return [
             WandbLogger(
                 project=training_cfg.get("wandb_project", "tft"),
