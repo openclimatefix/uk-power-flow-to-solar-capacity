@@ -4,7 +4,7 @@ from __future__ import annotations
 
 import inspect
 
-from src.process.sanity import check_csv_basic, check_file_exists, main, run_sanity_checks
+from process.sanity import check_csv_basic, check_file_exists, main, run_sanity_checks
 
 
 def test_has_expected_callables() -> None:

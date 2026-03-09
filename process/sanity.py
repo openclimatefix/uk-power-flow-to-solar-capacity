@@ -9,7 +9,7 @@ import hydra
 import pandas as pd
 from omegaconf import DictConfig
 
-from src.process.utils import analyze_directory
+from process.utils import analyze_directory
 
 logger = logging.getLogger(__name__)
 
