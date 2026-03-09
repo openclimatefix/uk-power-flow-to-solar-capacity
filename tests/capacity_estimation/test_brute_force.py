@@ -112,7 +112,7 @@ def test_build_coherent_mods_skips_missing_cols(site_df) -> None:
 def test_apply_scenario_modifies_within_daylight(site_df) -> None:
     out = apply_scenario(site_df, {"ssrd_w_m2": 999.0}, daylight_hours=(6, 19))
     daylight = out[out["timestamp"].dt.hour.between(6, 19)]
-    assert (daylight["ssrd_w_m2"] == 999.0).all()
+    assert daylight["ssrd_w_m2"].to_numpy() == pytest.approx(999.0)
 
 
 def test_apply_scenario_does_not_modify_night(site_df) -> None:
@@ -145,5 +145,5 @@ def test_apply_scenario_custom_daylight_hours(site_df) -> None:
     out = apply_scenario(site_df, {"tcc": 0.0}, daylight_hours=(10, 14))
     in_window = out[out["timestamp"].dt.hour.between(10, 14)]
     outside = out[~out["timestamp"].dt.hour.between(10, 14)]
-    assert (in_window["tcc"] == 0.0).all()
-    assert not (outside["tcc"] == 0.0).all()
+    assert in_window["tcc"].to_numpy() == pytest.approx(0.0)
+    assert outside["tcc"].to_numpy() != pytest.approx([0.0] * len(outside))
