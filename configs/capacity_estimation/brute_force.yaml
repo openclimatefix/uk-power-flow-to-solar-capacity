@@ -1,27 +1,16 @@
 paths:
-  dataset_path: data/pv_dataset.parquet
-  inference_ckpt: production_tft_model.ckpt
-
-output_dir: scenario_outputs_bruteforce
-
-batch_size: 32
-sites_per_chunk: 50
+  dataset_path: PLACEHOLDER.parquet
+  results_path: PLACEHOLDER_RESULTS_DIR
+  inference_ckpt: PLACEHOLDER.ckpt
 
 model:
-  target: power_mw
-  group_ids: ["location"]
-  time_idx: time_idx
+  group_ids: ['location']
+  time_idx: 'time_idx'
 
-scenario_features:
-  - ssrd_w_m2
-  - ghi
-  - dni
-  - dhi
-  - cs_ghi
-  - tcc
-  - cloud_cover
-  - solar_zenith_angle
-  - solar_elevation_angle
+output_dir: PLACEHOLDER_RESULTS_DIR/brute_force
+
+batch_size: 64
+sites_per_chunk: 50
 
 quantiles:
   high: 0.9
@@ -30,3 +19,30 @@ quantiles:
 push:
   high: 1.1
   low: 0.9
+
+scenario_features:
+  - temp_x_hour_cos
+  - month_sin
+  - hour_cos
+  - ssrd_w_m2_lag_2h
+  - sunrise_sunset_proximity
+  - sshf_w_m2
+  - slhf_w_m2
+  - is_civil_twilight
+  - year
+  - cloud_variability
+  - tp_mm
+  - hour_sin
+  - weather_index_cos
+  - dayofweek_cos
+  - u10
+  - ssrd_w_m2_lag_6h
+  - wind_dir_sin
+  - ishf_w_m2
+  - solar_noon_proximity
+  - weather_quality_score
+  - t2m_c_lag_2h
+  - is_weekend
+  - dayofyear
+  - d2m_c
+  - ssrd_w_m2
