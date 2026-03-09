@@ -28,6 +28,9 @@ def _site_quantiles(
     Returns:
         Tuple of (lo_quantiles, hi_quantiles, (col_mins, col_maxs)).
     """
+    cols = [c for c in cols if c in df.columns]
+    if not cols:
+        return {}, {}, ({}, {})
     data = df[cols].dropna(how="all")
     if data.empty:
         return {}, {}, ({}, {})
