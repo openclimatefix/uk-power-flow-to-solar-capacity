@@ -72,25 +72,29 @@ where:
 
 ## Capacity Estimation: On-Manifold Method (cVAE)
 
-Rather than constructing synthetic weather scenarios from scratch — which can produce physically implausible conditions — the model first learns what real weather actually looks like at each site, then generates scenarios that are guaranteed to stay within that observed range.
+As opposed to a brute force method, constructing synthetic weather scenarios from scratch which can in turn produce physically implausible conditions, the capacity estimation model first learns what real weather actually looks like at each site, then generates scenarios that are guaranteed to stay within that observed range.
 
-**Stage 1 — Learning the weather distribution.** A neural network (cVAE) is trained on years of historical ERA5 weather, learning a compact representation of typical conditions per site, month, and hour. Training minimises:
+**Stage 1 — Learning the weather distribution.** A cVAE is trained on years of historical weather data, learning a compact representation of typical conditions per location, month, and hour. Training minimises:
 
 $$\mathcal{L} = \text{reconstruction error} + \text{latent regularisation}$$
 
 where the reconstruction error penalises the network for generating weather vectors that differ from real observations, and the latent regularisation keeps the learned space smooth and continuous so that new samples remain physically plausible.
 
-**Stage 2 — Generating extreme scenarios.** The model generates $k$ plausible weather vectors for a given site and time. Each is scored by how solar-favourable it is:
+**Stage 2 — Generating extreme scenarios.** The model generates $k$ plausible weather vectors for a given site and time. Each is scored by how 'solar-'favourable' it is:
 
 $$s = \sum_j w_j x_j$$
 
 where $x_j$ is the value of weather feature $j$ (e.g. irradiance, cloud cover) and $w_j$ is a configured weight reflecting how strongly that feature drives solar generation (positive for irradiance, negative for cloud cover). The bottom 20% of scores become the *low-solar* pool; the top 20% become the *high-solar* pool.
 
-**Stage 3 — Estimating capacity.** For each of $N$ draws, the TFT is run under both a low- and high-solar scenario. The difference in predicted power is the estimated solar contribution:
+**Stage 3 — Estimating capacity.** For each of $N$ draws, the TFT is run under both a low and high solar scenario. The difference in predicted power is the estimated embedded solar contribution:
 
 $$\Delta_n = \max(0,\ \hat{P}^{+}_n - \hat{P}^{-}_n)$$
 
-where $\hat{P}^{+}_n$ is the predicted power under high-solar conditions and $\hat{P}^{-}_n$ under low-solar conditions for draw $n$. The $\max(0, \cdot)$ ensures only positive deltas contribute — i.e. cases where more sun genuinely reduces net demand. Capacity is the mean delta across all draws:
+where $\hat{P}^{+}_n$ is the predicted power under high solar conditions and $\hat{P}^{-}_n$ under low solar conditions for draw $n$. 
+
+The $\max(0, \cdot)$ ensures only positive deltas contribute — i.e. cases whereby more sun genuinely reduces net demand.
+
+Embedded capacity is hence the mean delta across all draws:
 
 $$\hat{C} = \frac{1}{N} \sum_{n=1}^{N} \Delta_n$$
 
