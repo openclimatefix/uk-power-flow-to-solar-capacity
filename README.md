@@ -1,18 +1,20 @@
 # UK Power Flow to Embedded Solar Capacity
 
-Inferring behind-the-meter PV capacity and producing operational solar power forecasts for approximately 600 UK primary substation locations.
+- Inferring behind-the-meter PV capacity
+- Producing operational solar power forecasts.
+- For approximately 600 UK primary substation locations.
 
-## Problem Formulation
+---
 
-Domestic level solar panels feed electricity directly into the local network without being metered at the substation. The more solar capacity exists behind the meter, the lower the observed demand reading during daylight hours. This creates a fundamental observability problem without directly seeing how much of any apparent demand reduction is driven by solar generation versus genuine changes in consumption.
+## Problem Formulation - Embedded Capacity Estimation
+
+Domestic level solar panels feed directly into the local network without being metered at the substation. The more solar capacity exists behind the meter, the lower the observed demand reading during daylight hours. This hence creates a fundamental observability problem without directly seeing how much of any apparent demand reduction is driven by solar generation versus genuine changes in consumption.
 
 Without knowing how much solar is installed at each of the primary substations across the UKPN network, operators cannot accurately forecast future flows, plan for constraint management, or assess headroom available for flexibility services.
 
 The aim of this project is to uncover hidden solar capacity figures purely from historical substation power readings and co-located weather data.
 
-The main inference objective is hence:
-
-**Capacity estimation**: Recover installed domestic capacity from historical residual signal, without direct metering.
+The main inference objective is hence to recover installed domestic capacity from historical residual signal - without direct metering.
 
 ---
 
@@ -26,7 +28,9 @@ The main inference objective is hence:
 
 **Coverage**: Approximately 600 UKPN primary substations across the South East and East of England.
 
-**Feature engineering** includes: solar zenith/azimuth proxies (`solar_noon_proximity`, `sunrise_sunset_proximity`, `is_civil_twilight`), lagged irradiance (`ssrd_w_m2_lag_2h`, `ssrd_w_m2_lag_6h`), cyclical time encodings (`hour_sin`, `hour_cos`, `month_sin`, `dayofweek_cos`), and cloud/weather quality indices.
+**Feature engineering** including but not limited to: solar zenith/azimuth proxies (`solar_noon_proximity`, `sunrise_sunset_proximity`, `is_civil_twilight`), lagged irradiance (`ssrd_w_m2_lag_2h`, `ssrd_w_m2_lag_6h`), cyclical time encodings (`hour_sin`, `hour_cos`, `month_sin`, `dayofweek_cos`), and cloud/weather quality indices.
+
+---
 
 ## Model Architectures
 
@@ -36,9 +40,9 @@ The primary forecasting model utilised is a modified [Temporal Fusion Transforme
 
 **Architectural modifications:**
 
-- LSTM encoder and decoder cells replaced with **GRU** units, reducing parameter count while retaining sequential inductive bias and improving both training stability and speed.
+- LSTM encoder and decoder cells replaced with GRU units, reducing parameter count while retaining sequential inductive bias and improving both training stability and speed.
 
-- An optional **attention-head diversity regularisation** term is added to the training loss:
+- An optional attention-head diversity regularisation term is added to the training loss:
 
 $$\mathcal{L}_{\text{total}} = \mathcal{L}_{\text{SMAPE}} + \lambda \cdot \Omega_{\text{div}}$$
 
