@@ -32,7 +32,7 @@ The main inference objective is hence to recover installed domestic capacity fro
 
 ---
 
-## Model Architectures
+## Model Architecture
 
 ### Temporal Fusion Transformer (TFT)
 
@@ -47,10 +47,10 @@ The primary forecasting model utilised is a modified [Temporal Fusion Transforme
 $$\mathcal{L}_{\text{total}} = \mathcal{L}_{\text{SMAPE}} + \lambda \cdot \Omega_{\text{div}}$$
 
 where:
-- $\mathcal{L}_{\text{total}}$ — total training loss
-- $\mathcal{L}_{\text{SMAPE}}$ — symmetric mean absolute percentage error between predicted and actual power values
-- $\lambda$ — regularisation strength, controlling how much the diversity term influences training
-- $\Omega_{\text{div}} = \frac{1}{\binom{H}{2}} \sum_{i < j} \langle \mathbf{a}_i, \mathbf{a}_j \rangle$ — mean pairwise cosine similarity across all $H$ attention heads; penalising this encourages each head to specialise on different temporal patterns rather than learning redundant representations
+- $\mathcal{L}_{\text{total}}$ — total training loss.
+- $\mathcal{L}_{\text{SMAPE}}$ — symmetric mean absolute percentage error between predicted and actual power values.
+- $\lambda$ — regularisation strength, controlling how much the diversity term influences training.
+- $\Omega_{\text{div}} = \frac{1}{\binom{H}{2}} \sum_{i < j} \langle \mathbf{a}_i, \mathbf{a}_j \rangle$ — mean pairwise cosine similarity across all $H$ attention heads; penalising this encourages each head to specialise on different temporal patterns rather than learning redundant representations.
 
 **Scheduler**: Cosine annealing with $\eta_{\min} = 0.01 \cdot \eta_0$, where $\eta_0$ is the initial learning rate and $\eta_{\min}$ is the minimum it decays to. Switchable to `ReduceLROnPlateau` via config.
 
@@ -58,15 +58,15 @@ where:
 
 <img src="docs/images/feature_importance_top25.png" width="50%"/>
 
-*Top 25 encoder variable importance weights. The interaction feature `temp_x_hour_cos` and seasonal encoding `month_sin` dominate, alongside 2-hour lagged irradiance and sunrise/sunset proximity.*
+*Top 25 encoder variable importance weights. Interaction feature `temp_x_hour_cos` and seasonal encoding `month_sin` dominate, alongside 2-hour lagged irradiance and sunrise/sunset proximity.*
 
 <img src="docs/images/global_model_attention_profile.png" width="50%"/>
 
-*Aggregated temporal attention weights across the encoder window. Peaks correspond to same-hour lookbacks on previous days, confirming the model exploits strong diurnal periodicity.*
+*Aggregated temporal attention weights across the encoder window. Peaks correspond to identical timestamp lookbacks on previous days.*
 
 <img src="docs/images/kemp_town_final_forecast.png" width="50%"/>
 
-*Continuous one-week forecast for Kemp Town substation (June 2025). The model captures daily demand cycles closely, with minor amplitude overestimation on high-irradiance afternoons consistent with residual BTM solar suppression.*
+*Continuous one-week forecast for randomly selected primary substation - June 2025. The TFT captures daily demand cycles closely, with minor overestimation on high-irradiance afternoons.*
 
 ---
 
