@@ -102,6 +102,16 @@ with P95 across the $N$ draws reported as an uncertainty bound.
 
 ---
 
+## Validation
+
+Three complementary strategies are employed, consistent with the absence of ground truth:
+
+1. **Year-on-year**: Capacity estimates should grow per year as solar deployment increases. Decreases flag potential estimation failures.
+2. **Synthetic injection**: Known capacity solar generation is subtracted from observed net load and scaled at varied factors; the capacity estimation method should recover the scaled value as fundamental difference.
+3. **GSP aggregation**: Substation level estimates are aggregated to GSP boundaries and compared against PVLive actuals.
+
+---
+
 ## Repository Structure
 ```
 uk-power-flow-to-solar-capacity/
