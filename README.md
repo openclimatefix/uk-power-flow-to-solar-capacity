@@ -128,9 +128,9 @@ Three complementary strategies are employed, consistent with the absence of grou
 
 <div align="center">
 <img src="docs/images/v2_p90_k0.1.png" width="60%"/>
-</div>
 
-*Validation Method 2 - per location scaling factor correspondance (k=0.1) using P90 estimated embedded capacities.*
+<em><strong>Figure 5:</strong> Validation Method 2 - per location scaling factor correspondance (k=0.1) using P90 estimated embedded capacities.</em>
+</div>
 
 ---
 
@@ -138,6 +138,8 @@ Three complementary strategies are employed, consistent with the absence of grou
 
 <div align="center">
 <img src="docs/images/mean.png" width="60%"/>
+
+<em><strong>Figure 6:</strong> Mean estimated embedded solar capacity across all primary substation locations.</em>
 </div>
 
 *Estimated Embedded Capacities - approximately 600 primary transformer locations utilising an extracted factor from the cVAE and applied to GSP-level values.*
