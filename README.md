@@ -25,7 +25,7 @@ The aim of this project is to uncover hidden solar capacity figures purely from 
 | Source | Description | Resolution |
 |---|---|---|
 | UKPN | Half-hourly active power per primary substation | 30 min |
-| ERA5 | Reanalysis weather variables (SSRD, T2M, U10, TP, etc.) | Hourly interpolated |
+| ERA5 | Reanalysis weather variables (SSRD, T2M, U10, TP, etc.) | Hourly |
 | PVLive (Sheffield Solar) | GSP-level aggregated PV generation actuals | 30 min |
 
 **Coverage**: Approximately 600 UKPN primary substations across the South East and East of England.
