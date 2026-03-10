@@ -1,0 +1,70 @@
+paths:
+  dataset_path: PLACEHOLDER.parquet
+  results_path: PLACEHOLDER_RESULTS_DIR
+  output_path: PLACEHOLDER.parquet
+  inference_ckpt: PLACEHOLDER.json
+
+splits:
+  train_start: "2021-01-01"
+  train_end: "2022-12-31"
+  val_start: "2023-01-01"
+  val_end: "2023-06-30"
+  test_start: "2023-07-01"
+  test_end: "2023-12-31"
+  timestamp_col: timestamp
+
+model:
+  target: active_power_mw_clean
+  group_ids:
+    - location
+  features:
+    - temp_x_hour_cos
+    - month_sin
+    - hour_cos
+    - ssrd_w_m2_lag_2h
+    - sunrise_sunset_proximity
+    - sshf_w_m2
+    - slhf_w_m2
+    - is_civil_twilight
+    - year
+    - cloud_variability
+    - tp_mm
+    - hour_sin
+    - weather_index_cos
+    - dayofweek_cos
+    - u10
+    - ssrd_w_m2_lag_6h
+    - wind_dir_sin
+    - ishf_w_m2
+    - solar_noon_proximity
+    - weather_quality_score
+    - t2m_c_lag_2h
+    - is_weekend
+    - dayofyear
+    - d2m_c
+    - ssrd_w_m2
+    - lat
+    - lon
+    - site_altitude
+
+  n_estimators: 1000
+  max_depth: 6
+  learning_rate: 0.05
+  subsample: 0.8
+  colsample_bytree: 0.8
+  min_child_weight: 5
+  gamma: 0.1
+  reg_alpha: 0.1
+  reg_lambda: 1.0
+  tree_method: hist
+  device: gpu
+
+training:
+  early_stopping_rounds: 50
+  eval_metric: mae
+  num_workers: 4
+  mlflow_tracking_uri: null
+  mlflow_experiment: xgboost
+
+logging:
+  level: INFO
