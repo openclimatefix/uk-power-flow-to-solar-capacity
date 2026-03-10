@@ -1,0 +1,88 @@
+paths:
+  dataset_path: PLACEHOLDER.parquet
+  results_path: PLACEHOLDER_RESULTS_DIR
+  output_path: PLACEHOLDER.parquet
+  inference_ckpt: PLACEHOLDER.ckpt
+
+splits:
+  train_start: "2021-01-01"
+  train_end: "2022-12-31"
+  val_start: "2023-01-01"
+  val_end: "2023-06-30"
+  test_start: "2023-07-01"
+  test_end: "2023-12-31"
+  timestamp_col: timestamp
+
+model:
+  target: active_power_mw_clean
+  group_ids:
+    - location
+  max_encoder_length: 336
+  max_prediction_length: 12
+  static_reals:
+    - lat
+    - lon
+    - site_altitude
+  static_categoricals:
+    - location
+  time_varying_known_reals:
+    - temp_x_hour_cos
+    - month_sin
+    - hour_cos
+    - ssrd_w_m2_lag_2h
+    - sunrise_sunset_proximity
+    - sshf_w_m2
+    - slhf_w_m2
+    - is_civil_twilight
+    - year
+    - cloud_variability
+    - tp_mm
+    - hour_sin
+    - weather_index_cos
+    - dayofweek_cos
+    - u10
+    - ssrd_w_m2_lag_6h
+    - wind_dir_sin
+    - ishf_w_m2
+    - solar_noon_proximity
+    - weather_quality_score
+    - t2m_c_lag_2h
+    - is_weekend
+    - dayofyear
+    - d2m_c
+    - ssrd_w_m2
+  time_varying_unknown_reals:
+    - active_power_mw_clean
+  hidden_size: 512
+  dropout: 0.08
+  n_blocks:
+    - 2
+    - 2
+    - 2
+  pooling_sizes:
+    - 4
+    - 2
+    - 1
+  downsample_frequencies:
+    - 4
+    - 2
+    - 1
+  backcast_loss_ratio: 0.1
+  log_interval: 10
+
+training:
+  learning_rate: 0.00025
+  weight_decay: 0.00032
+  batch_size: 256
+  max_epochs: 100
+  gradient_clip_val: 0.1
+  early_stopping_patience: 10
+  num_workers: 8
+  precision: bf16-mixed
+  enable_progress_bar: true
+  enable_checkpointing: true
+  mlflow_tracking_uri: null
+  mlflow_experiment: nhits
+
+logging:
+  level: INFO
