@@ -2,10 +2,6 @@
 
 Inferring behind-the-meter PV capacity and producing operational solar power forecasts for approximately 600 UK primary substation locations.
 
-[![CI](https://github.com/openclimatefix/uk-power-flow-to-solar-capacity/actions/workflows/ci.yml/badge.svg)](https://github.com/openclimatefix/uk-power-flow-to-solar-capacity/actions/workflows/ci.yml)
-[![Python 3.12](https://img.shields.io/badge/python-3.12-blue.svg)](https://www.python.org/downloads/release/python-3120/)
-[![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](LICENSE)
-
 ## Problem Formulation
 
 Let $P_t^{\text{obs}}$ denote net active power demand observed at a primary substation at half-hourly timestep $t$.
