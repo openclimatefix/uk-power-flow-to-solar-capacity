@@ -114,6 +114,10 @@ Three complementary strategies are employed, consistent with the absence of grou
 2. **Synthetic injection**: Known capacity solar generation is subtracted from observed net load and scaled at varied factors; the capacity estimation method should recover the scaled value as fundamental difference.
 3. **GSP aggregation**: Substation level estimates are aggregated to GSP boundaries and compared against PVLive actuals.
 
+<img src="docs/images/v2_p90_k0.1.png" width="60%"/>
+
+*Validation Method 2 - per location scaling factor correspondance (k=0.1) using P90 estimated embedded capacities*
+
 ---
 
 ## Repository Structure
