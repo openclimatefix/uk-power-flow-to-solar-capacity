@@ -3,6 +3,7 @@
 ![version](https://img.shields.io/badge/version-0.1.0-blue)
 ![python](https://img.shields.io/badge/python-3.12-blue)
 ![license](https://img.shields.io/badge/license-MIT-green)
+![CI](https://github.com/openclimatefix/uk-power-flow-to-solar-capacity/actions/workflows/ci.yml/badge.svg)
 
 - Inferring behind-the-meter PV capacity
 - Producing operational solar power forecasts.
