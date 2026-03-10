@@ -1,5 +1,9 @@
 # UK Power Flow to Embedded Solar Capacity
 
+![version](https://img.shields.io/badge/version-0.1.0-blue)
+![python](https://img.shields.io/badge/python-3.12-blue)
+![license](https://img.shields.io/badge/license-MIT-green)
+
 - Inferring behind-the-meter PV capacity
 - Producing operational solar power forecasts.
 - For approximately 600 UK primary substation locations.
@@ -184,4 +188,10 @@ cd uk-power-flow-to-solar-capacity
 uv sync
 ```
 
-Before running, replace all `PLACEHOLDER_*` tokens in the relevant config files under `configs/` with local paths.
+Before running/training, replace all `PLACEHOLDER_*` tokens in the relevant config files under `configs/` with local paths.
+
+---
+
+## Testing
+
+All tests executable via ```python pytest tests``` from project root.
