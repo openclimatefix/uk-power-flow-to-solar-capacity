@@ -68,21 +68,21 @@ where:
 
 <div align="center">
 <img src="docs/images/feature_importance_top25.png" width="60%"/>
-</div>
 
-*Top 25 encoder variable importance weights. Interaction feature `temp_x_hour_cos` and seasonal encoding `month_sin` dominate, alongside 2-hour lagged irradiance and sunrise/sunset proximity.*
+<em><strong>Figure 2:</strong> Top 25 encoder variable importance weights. Interaction feature `temp_x_hour_cos` and seasonal encoding `month_sin` dominate, alongside 2-hour lagged irradiance and sunrise/sunset proximity.</em>
+</div>
 
 <div align="center">
 <img src="docs/images/global_model_attention_profile.png" width="60%"/>
-</div>
 
-*Aggregated temporal attention weights across the encoder window. Peaks correspond to identical timestamp lookbacks on previous days.*
+<em><strong>Figure 3:</strong> Aggregated temporal attention weights across the encoder window. Peaks correspond to identical timestamp lookbacks on previous days.</em>
+</div>
 
 <div align="center">
 <img src="docs/images/kemp_town_final_forecast.png" width="60%"/>
-</div>
 
-*Continuous one-week forecast for randomly selected primary substation - June 2025. The TFT captures daily demand cycles closely, with minor overestimation on high-irradiance afternoons.*
+<em><strong>Figure 4:</strong> Continuous one-week forecast for randomly selected primary substation - June 2025. The TFT captures daily demand cycles closely, with minor overestimation on high-irradiance afternoons.</em>
+</div>
 
 ---
 
