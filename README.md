@@ -41,7 +41,7 @@ The aim of this project is to uncover hidden solar capacity figures purely from 
 The primary forecasting model utilised is a modified [Temporal Fusion Transformer](https://arxiv.org/abs/1912.09363) (Lim et al., 2021), implemented via `pytorch-forecasting`.
 
 <div align="center">
-<img src="docs/images/tft_diagram.png" width="60%"/>
+<img src="docs/images/tft_diagram.png" width="40%"/>
 </div>
 
 *Example architectural overview of the TFT.*
