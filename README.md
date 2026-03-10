@@ -42,9 +42,8 @@ The primary forecasting model utilised is a modified [Temporal Fusion Transforme
 
 <div align="center">
 <img src="docs/images/tft_diagram.png" width="40%"/>
-</div>
-
 *Example architectural overview of the TFT.*
+</div>
 
 **Architectural modifications:**
 
