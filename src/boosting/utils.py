@@ -109,10 +109,8 @@ def log_feature_importance(
         top_n: Number of top features to log.
     """
     scores = model.feature_importances_
+    importance_df = pd.DataFrame({"feature": feature_cols, "importance": scores})
     importance_df = (
-        pd.DataFrame({"feature": feature_cols, "importance": scores})
-        .sort_values("importance", ascending=False)
-        .head(top_n)
-        .reset_index(drop=True)
+        importance_df.sort_values("importance", ascending=False).head(top_n).reset_index(drop=True)
     )
     logger.info("Top %d features:\n%s", top_n, importance_df.to_string(index=False))
