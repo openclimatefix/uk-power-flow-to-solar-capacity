@@ -25,13 +25,13 @@ jobs:
         run: uv sync
 
       - name: ruff check
-        run: ruff check .
+        run: uv run ruff check .
 
       - name: ruff format check
-        run: ruff format --check .
+        run: uv run ruff format --check .
 
       - name: mypy
-        run: mypy .
+        run: uv run mypy .
         continue-on-error: true
 
   tests:
@@ -57,7 +57,7 @@ jobs:
         run: uv sync
 
       - name: Run tests
-        run: python -m pytest --verbose --cov --cov-report=xml --cov-report=term-missing
+        run: uv run python -m pytest --verbose --cov --cov-report=xml --cov-report=term-missing
 
       - name: Upload coverage
         uses: codecov/codecov-action@v4
@@ -65,7 +65,7 @@ jobs:
           files: coverage.xml
           fail_ci_if_error: false
         continue-on-error: true
-  
+
   summary:
     name: CI passed
     runs-on: ubuntu-latest
