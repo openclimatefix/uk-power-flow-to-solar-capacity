@@ -124,7 +124,7 @@ Three complementary strategies are employed, consistent with the absence of grou
 
 <img src="docs/images/mean.png" width="60%"/>
 
-*VEstimated Embedded Capacities - approximately 600 primary transformer locations utilising an extracted factor from the cVAE and applied to GSP-level values.*
+*Estimated Embedded Capacities - approximately 600 primary transformer locations utilising an extracted factor from the cVAE and applied to GSP-level values.*
 
 ## Repository Structure
 ```
