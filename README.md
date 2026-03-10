@@ -12,9 +12,7 @@ Domestic level solar panels feed directly into the local network without being m
 
 Without knowing how much solar is installed at each of the primary substations across the UKPN network, operators cannot accurately forecast future flows, plan for constraint management, or assess headroom available for flexibility services.
 
-The aim of this project is to uncover hidden solar capacity figures purely from historical substation power readings and co-located weather data.
-
-The main inference objective is hence to recover installed domestic capacity from historical residual signal - without direct metering.
+The aim of this project is to uncover hidden solar capacity figures purely from historical substation power readings and co-located weather data. The main inference objective is hence to recover installed domestic capacity from historical residual signal - without direct metering.
 
 ---
 
