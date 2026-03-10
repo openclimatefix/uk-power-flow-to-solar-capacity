@@ -52,13 +52,16 @@ where:
 
 **Target normalisation**: Per-group softplus normalisation via `GroupNormalizer`, applied independently per substation.
 
-![Encoder Variable Importance](docs/images/feature_importance_top25.png)
+<img src="docs/images/feature_importance_top25.png" width="50%"/>
+
 *Top 25 encoder variable importance weights. The interaction feature `temp_x_hour_cos` and seasonal encoding `month_sin` dominate, alongside 2-hour lagged irradiance and sunrise/sunset proximity.*
 
-![Global Temporal Attention Profile](docs/images/global_model_attention_profile.png)
+<img src="docs/images/global_model_attention_profile.png" width="50%"/>
+
 *Aggregated temporal attention weights across the encoder window. Peaks correspond to same-hour lookbacks on previous days, confirming the model exploits strong diurnal periodicity.*
 
-![Kemp Town Forecast](docs/images/kemp_town_final_forecast.png)
+<img src="docs/images/kemp_town_final_forecast.png" width="50%"/>
+
 *Continuous one-week forecast for Kemp Town substation (June 2025). The model captures daily demand cycles closely, with minor amplitude overestimation on high-irradiance afternoons consistent with residual BTM solar suppression.*
 
 ---
