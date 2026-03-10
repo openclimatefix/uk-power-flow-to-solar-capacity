@@ -116,7 +116,7 @@ Three complementary strategies are employed, consistent with the absence of grou
 
 <img src="docs/images/v2_p90_k0.1.png" width="60%"/>
 
-*Validation Method 2 - per location scaling factor correspondance (k=0.1) using P90 estimated embedded capacities*
+*Validation Method 2 - per location scaling factor correspondance (k=0.1) using P90 estimated embedded capacities.*
 
 ---
 
