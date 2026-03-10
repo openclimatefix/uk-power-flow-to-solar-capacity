@@ -52,30 +52,22 @@ where $\Omega_{\text{div}} = \frac{1}{\binom{H}{2}} \sum_{i < j} \langle \mathbf
 
 ## Capacity Estimation: On-Manifold Method (cVAE)
 
-The on-manifold method frames BTM capacity estimation as a **counterfactual intervention problem** under a learned weather distribution. Rather than injecting synthetic solar based on parametric irradiance models — which risk physically implausible feature combinations — this approach constrains all scenario generation to the *learned data manifold* of observed ERA5 weather.
+Rather than constructing synthetic weather scenarios from scratch — which can produce physically implausible conditions — the model first learns what real weather actually looks like at each site, then generates scenarios that are guaranteed to stay within that observed range.
 
-**Stage 1 — Manifold Learning.** A conditional variational autoencoder (cVAE; Kingma & Welling, 2014; Sohn et al., 2015) is trained on historical weather feature vectors $\mathbf{x} \in \mathbb{R}^d$, conditioned on site identity $\ell$, calendar month $m$, and hour of day $h$:
+**Stage 1 — Learning the weather distribution.** A neural network (cVAE) is trained on years of historical ERA5 weather, learning a compact representation of typical conditions per site, month, and hour. Training minimises:
 
-$$q_\phi(\mathbf{z} \mid \mathbf{x}, \ell, m, h) = \mathcal{N}(\boldsymbol{\mu}_\phi, \text{diag}(\boldsymbol{\sigma}^2_\phi))$$
+$$\mathcal{L} = \text{reconstruction error} + \text{latent regularisation}$$
 
-The model is optimised via the conditional ELBO:
+**Stage 2 — Generating extreme scenarios.** The model generates $k$ plausible weather vectors for a given site and time. Each is scored by how solar-favourable it is:
 
-$$\mathcal{L}_{\text{ELBO}} = \mathbb{E}_{q_\phi}\left[\log p_\theta(\mathbf{x} \mid \mathbf{z}, \ell, m, h)\right] - \beta \cdot D_{\text{KL}}\left(q_\phi \| \mathcal{N}(\mathbf{0}, \mathbf{I})\right)$$
+$$s = \sum_j w_j x_j$$
 
-where the reconstruction term uses MSE and $\beta = 1$ (standard VAE). Location, month, and hour are embedded via learned lookup tables and concatenated to form the conditioning vector before both encoder and decoder.
+The bottom 20% become the *low-solar* pool; the top 20% become the *high-solar* pool.
 
-**Stage 2 — Counterfactual Scenario Sampling.** At inference time, $k$ weather vectors are sampled from the prior $\mathbf{z} \sim \mathcal{N}(\mathbf{0}, \mathbf{I})$ and decoded through the conditioned generator. Samples are partitioned into *high-solar* and *low-solar* pools by a weighted scoring function:
+**Stage 3 — Estimating capacity.** For each of $N$ draws, the TFT is run under both a low- and high-solar scenario. The difference in predicted power is the estimated solar contribution:
 
-$$s(\mathbf{x}) = \sum_j w_j x_j$$
+$$\Delta_n = \max(0,\ \hat{P}^{+}_n - \hat{P}^{-}_n)$$
 
-where weights $w_j$ are configured per feature (e.g. positive for `ssrd_w_m2`, negative for `cloud_variability`). Pool membership is determined by the 20th and 80th percentile thresholds of $s(\mathbf{x})$ across the $k$ draws.
-
-**Stage 3 — Capacity Attribution via TFT Delta.** For each of $N$ Monte Carlo draws, a low-solar scenario $\mathbf{v}^{-}$ and high-solar scenario $\mathbf{v}^{+}$ are injected into the observed site time series during daylight hours. The TFT is run under both conditions, and a linear calibration $\hat{y} \leftarrow a\hat{y} + b$ (fitted on the validation split via ordinary least-squares) corrects for systematic model bias before computing the solar impact delta:
-
-$$\Delta_n = \max\left(0,\ \hat{P}^{+}_n - \hat{P}^{-}_n\right)$$
-
-The estimated installed capacity is then:
+Capacity is the mean delta across all draws:
 
 $$\hat{C} = \frac{1}{N} \sum_{n=1}^{N} \Delta_n$$
-
-with the P95 reported as an uncertainty bound. The sign of $\Delta$ is adjusted by an orientation flag inferred from the Pearson correlation between observed power and irradiance during summer midday windows, handling both generation-positive and net-load-positive site conventions.
