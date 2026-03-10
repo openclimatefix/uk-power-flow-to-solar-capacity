@@ -99,3 +99,47 @@ Embedded capacity is hence the mean delta across all draws:
 $$\hat{C} = \frac{1}{N} \sum_{n=1}^{N} \Delta_n$$
 
 with P95 across the $N$ draws reported as an uncertainty bound.
+
+---
+
+## Repository Structure
+```
+uk-power-flow-to-solar-capacity/
+├── configs/
+│   ├── tft/
+│   ├── nhits/
+│   ├── boosting/
+│   └── capacity_estimation/
+├── src/
+│   ├── tft/                        # TFT pipeline (train, infer, tune, data, model, utils)
+│   ├── nhits/                      # N-HiTS pipeline
+│   ├── boosting/                   # XGBoost pipeline
+│   ├── capacity_estimation/
+│   │   ├── brute_force/            # Grid search capacity estimator
+│   │   ├── on_manifold/            # cVAE pipeline (sampler, run, data_utils, model_utils)
+│   │   └── historical_analogue.py  # Estimator relying on historical periods
+│   └── process/                    # Data preprocessing and merge pipeline
+├── tests/
+│   ├── tft/
+│   ├── nhits/
+│   ├── boosting/
+│   └── process/
+├── pyproject.toml
+└── README.md
+```
+
+---
+
+## Installation
+
+Requires Python 3.12.
+
+GPU recommended for TFT and N-HiTS training.
+
+```bash
+git clone https://github.com/openclimatefix/uk-power-flow-to-solar-capacity.git
+cd uk-power-flow-to-solar-capacity
+uv sync
+```
+
+Before running, replace all `PLACEHOLDER_*` tokens in the relevant config files under `configs/` with local paths.
