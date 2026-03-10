@@ -24,7 +24,7 @@ The main inference objective is hence:
 | ERA5 | Reanalysis weather variables (SSRD, T2M, U10, TP, etc.) | Hourly interpolated |
 | PVLive (Sheffield Solar) | GSP-level aggregated PV generation actuals | 30 min |
 
-**Coverage**: Approximately 600 UKPN primary substations across the South East and East of England..
+**Coverage**: Approximately 600 UKPN primary substations across the South East and East of England.
 
 **Feature engineering** includes: solar zenith/azimuth proxies (`solar_noon_proximity`, `sunrise_sunset_proximity`, `is_civil_twilight`), lagged irradiance (`ssrd_w_m2_lag_2h`, `ssrd_w_m2_lag_6h`), cyclical time encodings (`hour_sin`, `hour_cos`, `month_sin`, `dayofweek_cos`), and cloud/weather quality indices.
 
@@ -47,6 +47,15 @@ where $\Omega_{\text{div}} = \frac{1}{\binom{H}{2}} \sum_{i < j} \langle \mathbf
 **Scheduler**: Cosine annealing with $\eta_{\min} = 0.01 \cdot \eta_0$, switchable to `ReduceLROnPlateau` via config.
 
 **Target normalisation**: Per-group softplus normalisation via `GroupNormalizer`.
+
+![Encoder Variable Importance](docs/images/feature_importance_top25.png)
+*Top 25 encoder variable importance weights. The interaction feature `temp_x_hour_cos` and seasonal encoding `month_sin` dominate, alongside 2-hour lagged irradiance and sunrise/sunset proximity.*
+
+![Global Temporal Attention Profile](docs/images/global_model_attention_profile.png)
+*Aggregated temporal attention weights across the encoder window. Peaks correspond to same-hour lookbacks on previous days, confirming the model exploits strong diurnal periodicity.*
+
+![Kemp Town Forecast](docs/images/kemp_town_final_forecast.png)
+*Continuous one-week forecast for Kemp Town substation (June 2025). The model captures daily demand cycles closely, with minor amplitude overestimation on high-irradiance afternoons consistent with residual BTM solar suppression.*
 
 ---
 
