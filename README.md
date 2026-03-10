@@ -106,7 +106,7 @@ with P95 across the $N$ draws reported as an uncertainty bound.
 
 ---
 
-## Validation
+## Validation Methodologies
 
 Three complementary strategies are employed, consistent with the absence of ground truth:
 
@@ -119,6 +119,12 @@ Three complementary strategies are employed, consistent with the absence of grou
 *Validation Method 2 - per location scaling factor correspondance (k=0.1) using P90 estimated embedded capacities.*
 
 ---
+
+## Example Output Visualisation
+
+<img src="docs/images/mean.png" width="60%"/>
+
+*VEstimated Embedded Capacities - approximately 600 primary transformer locations utilising an extracted factor from the cVAE and applied to GSP-level values.*
 
 ## Repository Structure
 ```
