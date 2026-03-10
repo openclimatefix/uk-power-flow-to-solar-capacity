@@ -142,7 +142,7 @@ Three complementary strategies are employed, consistent with the absence of grou
 <em><strong>Figure 6:</strong> Mean estimated embedded solar capacity across all primary substation locations.</em>
 </div>
 
-*Estimated Embedded Capacities - approximately 600 primary transformer locations utilising an extracted factor from the cVAE and applied to GSP-level values.*
+---
 
 ## Repository Structure
 ```
