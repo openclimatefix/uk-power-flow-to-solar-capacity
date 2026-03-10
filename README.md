@@ -194,4 +194,4 @@ Before running/training, replace all `PLACEHOLDER_*` tokens in the relevant conf
 
 ## Testing
 
-All tests executable via ```python pytest tests``` from project root.
+All tests executable via ```pytest tests``` from project root.
