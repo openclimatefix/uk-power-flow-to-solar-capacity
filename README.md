@@ -42,11 +42,15 @@ The primary forecasting model utilised is a modified [Temporal Fusion Transforme
 
 $$\mathcal{L}_{\text{total}} = \mathcal{L}_{\text{SMAPE}} + \lambda \cdot \Omega_{\text{div}}$$
 
-where $\Omega_{\text{div}} = \frac{1}{\binom{H}{2}} \sum_{i < j} \langle \mathbf{a}_i, \mathbf{a}_j \rangle$ penalises mean pairwise cosine similarity across the $H$ attention heads, encouraging specialisation across temporal scales.
+where:
+- $\mathcal{L}_{\text{total}}$ — total training loss
+- $\mathcal{L}_{\text{SMAPE}}$ — symmetric mean absolute percentage error between predicted and actual power values
+- $\lambda$ — regularisation strength, controlling how much the diversity term influences training
+- $\Omega_{\text{div}} = \frac{1}{\binom{H}{2}} \sum_{i < j} \langle \mathbf{a}_i, \mathbf{a}_j \rangle$ — mean pairwise cosine similarity across all $H$ attention heads; penalising this encourages each head to specialise on different temporal patterns rather than learning redundant representations
 
-**Scheduler**: Cosine annealing with $\eta_{\min} = 0.01 \cdot \eta_0$, switchable to `ReduceLROnPlateau` via config.
+**Scheduler**: Cosine annealing with $\eta_{\min} = 0.01 \cdot \eta_0$, where $\eta_0$ is the initial learning rate and $\eta_{\min}$ is the minimum it decays to. Switchable to `ReduceLROnPlateau` via config.
 
-**Target normalisation**: Per-group softplus normalisation via `GroupNormalizer`.
+**Target normalisation**: Per-group softplus normalisation via `GroupNormalizer`, applied independently per substation.
 
 ![Encoder Variable Importance](docs/images/feature_importance_top25.png)
 *Top 25 encoder variable importance weights. The interaction feature `temp_x_hour_cos` and seasonal encoding `month_sin` dominate, alongside 2-hour lagged irradiance and sunrise/sunset proximity.*
@@ -67,16 +71,20 @@ Rather than constructing synthetic weather scenarios from scratch — which can 
 
 $$\mathcal{L} = \text{reconstruction error} + \text{latent regularisation}$$
 
+where the reconstruction error penalises the network for generating weather vectors that differ from real observations, and the latent regularisation keeps the learned space smooth and continuous so that new samples remain physically plausible.
+
 **Stage 2 — Generating extreme scenarios.** The model generates $k$ plausible weather vectors for a given site and time. Each is scored by how solar-favourable it is:
 
 $$s = \sum_j w_j x_j$$
 
-The bottom 20% become the *low-solar* pool; the top 20% become the *high-solar* pool.
+where $x_j$ is the value of weather feature $j$ (e.g. irradiance, cloud cover) and $w_j$ is a configured weight reflecting how strongly that feature drives solar generation (positive for irradiance, negative for cloud cover). The bottom 20% of scores become the *low-solar* pool; the top 20% become the *high-solar* pool.
 
 **Stage 3 — Estimating capacity.** For each of $N$ draws, the TFT is run under both a low- and high-solar scenario. The difference in predicted power is the estimated solar contribution:
 
 $$\Delta_n = \max(0,\ \hat{P}^{+}_n - \hat{P}^{-}_n)$$
 
-Capacity is the mean delta across all draws:
+where $\hat{P}^{+}_n$ is the predicted power under high-solar conditions and $\hat{P}^{-}_n$ under low-solar conditions for draw $n$. The $\max(0, \cdot)$ ensures only positive deltas contribute — i.e. cases where more sun genuinely reduces net demand. Capacity is the mean delta across all draws:
 
 $$\hat{C} = \frac{1}{N} \sum_{n=1}^{N} \Delta_n$$
+
+with P95 across the $N$ draws reported as an uncertainty bound.
