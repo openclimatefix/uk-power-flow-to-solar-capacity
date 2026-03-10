@@ -30,6 +30,10 @@ The main inference objective is hence to recover installed domestic capacity fro
 
 **Feature engineering** including but not limited to: solar zenith/azimuth proxies (`solar_noon_proximity`, `sunrise_sunset_proximity`, `is_civil_twilight`), lagged irradiance (`ssrd_w_m2_lag_2h`, `ssrd_w_m2_lag_6h`), cyclical time encodings (`hour_sin`, `hour_cos`, `month_sin`, `dayofweek_cos`), and cloud/weather quality indices.
 
+[UKPN Open Data Portal](https://ukpowernetworks.opendatasoft.com/pages/home/)
+
+[Copernicus ERA5 Reanalysis](https://cds.climate.copernicus.eu/datasets/reanalysis-era5-single-levels?tab=overview)
+
 ---
 
 ## Model Architecture
