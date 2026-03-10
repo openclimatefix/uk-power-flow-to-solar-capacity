@@ -27,8 +27,3 @@ uk_power_flow_to_solar_capacity.egg-info/
 outputs/
 data/
 tft_training.log
-
-# Images
-*.png
-*.jpg
-*.jpeg
