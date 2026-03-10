@@ -56,15 +56,15 @@ where:
 
 **Target normalisation**: Per-group softplus normalisation via `GroupNormalizer`, applied independently per substation.
 
-<img src="docs/images/feature_importance_top25.png" width="50%"/>
+<img src="docs/images/feature_importance_top25.png" width="60%"/>
 
 *Top 25 encoder variable importance weights. Interaction feature `temp_x_hour_cos` and seasonal encoding `month_sin` dominate, alongside 2-hour lagged irradiance and sunrise/sunset proximity.*
 
-<img src="docs/images/global_model_attention_profile.png" width="50%"/>
+<img src="docs/images/global_model_attention_profile.png" width="60%"/>
 
 *Aggregated temporal attention weights across the encoder window. Peaks correspond to identical timestamp lookbacks on previous days.*
 
-<img src="docs/images/kemp_town_final_forecast.png" width="50%"/>
+<img src="docs/images/kemp_town_final_forecast.png" width="60%"/>
 
 *Continuous one-week forecast for randomly selected primary substation - June 2025. The TFT captures daily demand cycles closely, with minor overestimation on high-irradiance afternoons.*
 
