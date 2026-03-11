@@ -4,7 +4,7 @@
 ![python](https://img.shields.io/badge/python-3.12-blue)
 ![license](https://img.shields.io/badge/license-MIT-red)
 
-- Estimating behind-the-meter PV capacity.
+- Inferring behind-the-meter PV capacity
 - Producing operational solar power forecasts.
 - For approximately 600 UK primary substation locations.
 
@@ -58,13 +58,13 @@ The primary forecasting model utilised is a modified [Temporal Fusion Transforme
 
 - An optional attention-head diversity regularisation term is added to the training loss:
 
-$$\mathcal{L}_{\text{total}} = \mathcal{L}_{\text{SMAPE}} + \lambda \cdot \Omega_{\text{div}}$$
+$$\mathcal{L}_{\text{T}} = \mathcal{L}_{\text{S}} + \lambda \cdot \Omega_{\text{D}}$$
 
 where:
-- $\mathcal{L}_{\text{total}}$ — total training loss.
-- $\mathcal{L}_{\text{SMAPE}}$ — symmetric mean absolute percentage error between predicted and actual power values.
-- $\lambda$ — regularisation strength, controlling how much the diversity term influences training.
-- $\Omega_{\text{div}} = \frac{1}{\binom{H}{2}} \sum_{i < j} \langle \mathbf{a}_i, \mathbf{a}_j \rangle$ — mean pairwise cosine similarity across all $H$ attention heads; penalising this encourages each head to specialise on different temporal patterns rather than learning redundant representations.
+- $\mathcal{L}_{\text{T}}$ — total training loss.
+- $\mathcal{L}_{\text{S}}$ — symmetric mean absolute percentage error.
+- $\lambda$ — regularisation strength.
+- $\Omega_{\text{D}} = \frac{1}{\binom{H}{2}} \sum_{i < j} \langle \mathbf{a}_i, \mathbf{a}_j \rangle$ — mean pairwise cosine similarity across all $H$ attention heads; penalising this encourages each head to specialise on different temporal patterns rather than learning redundant representations.
 
 **Scheduler**: Cosine annealing with $\eta_{\min} = 0.01 \cdot \eta_0$, where $\eta_0$ is the initial learning rate and $\eta_{\min}$ is the minimum it decays to. Switchable to `ReduceLROnPlateau` via config.
 
