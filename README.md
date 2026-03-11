@@ -4,7 +4,7 @@
 ![python](https://img.shields.io/badge/python-3.12-blue)
 ![license](https://img.shields.io/badge/license-MIT-red)
 
-- Inferring behind-the-meter PV capacity
+- Estimating behind-the-meter PV capacity.
 - Producing operational solar power forecasts.
 - For approximately 600 UK primary substation locations.
 
